@@ -35,6 +35,10 @@ WANTED_ALLOW_UNOFFICIAL=1 bun run .agents/skills/wanted-search/cli/src/cli.ts de
 - 공식 키 발급은 [Wanted OpenAPI 포털](https://openapi.wanted.jobs/)에서 연동을 신청하세요. `--unofficial` 및 `WANTED_ALLOW_UNOFFICIAL=1`은 robots 정책 미확인인 비공식 웹 JSON을 개인 구직 용도로 호출하도록 명시적으로 허용합니다. 권한을 부여하지 않으려면 공고 URL이나 본문을 `/apply-kr`에 직접 붙여넣으세요.
 - 오류는 stderr JSON과 종료 코드 1로 반환합니다.
 
+## 요청 수
+
+`search`와 `detail` JSON은 `meta.http_requests`에 재시도를 포함한 실제 HTTP fetch 수를 담습니다. table/plain 출력은 stderr에 `http_requests: N`을 표시합니다. 검색과 상세는 기본 1회 요청이며 429/5xx 재시도는 설정된 재시도 한도 안에서 계측값에 포함됩니다.
+
 ## 출처 / 제한
 
 OpenAPI 인증 및 endpoint 개요는 [url-reference.md](url-reference.md)를 확인하세요. 키가 없는 현재 환경에서 공식 OpenAPI 경로는 **미검증(키 없음)** 상태입니다. 공개 API의 정책 또한 robots.txt 차단으로 **미확인**입니다.

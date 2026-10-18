@@ -2,11 +2,15 @@ import { parse } from "node-html-parser"
 
 export const API_URL = "https://oapi.saramin.co.kr/job-search"
 export const WEB_URL = "https://www.saramin.co.kr"
+let httpRequests = 0
+export function resetHttpRequests(): void { httpRequests = 0 }
+export function getHttpRequests(): number { return httpRequests }
 export type Job = { id: string; title: string; company: string | null; location: string | null; posted_at: string | null; deadline: string | null; date: string | null; deadline_text?: string | null; career: string | null; education: string | null; employment_type: string | null; is_ad?: boolean; url: string; source: "saramin-api" | "saramin-web" }
 export function writeError(error: string, code: string) { process.stderr.write(JSON.stringify({ error, code }) + "\n") }
 export async function fetchText(url: string, accept = "text/html,application/xhtml+xml") {
   let delay = 500
   for (let attempt = 0; attempt <= 4; attempt++) {
+    httpRequests++
     const response = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0 (compatible; saramin-cli/0.1; personal job search)", Accept: accept, "Accept-Language": "ko-KR,ko;q=0.9" }, redirect: "follow", signal: AbortSignal.timeout(15000) })
     if (response.status === 429 || response.status >= 500) { if (attempt === 4) throw new Error(`요청 실패: HTTP ${response.status}`); await new Promise(resolve => setTimeout(resolve, delay)); delay = Math.min(delay * 2, 4000); continue }
     if (!response.ok) throw new Error(`요청 실패: HTTP ${response.status}`)

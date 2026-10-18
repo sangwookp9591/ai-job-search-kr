@@ -1,5 +1,8 @@
 export const WEB_BASE = "https://www.wanted.co.kr"
 export const OPENAPI_BASE = "https://openapi.wanted.jobs/v1"
+let httpRequests = 0
+export function resetHttpRequests(): void { httpRequests = 0 }
+export function getHttpRequests(): number { return httpRequests }
 
 export function writeError(error: string, code: string): void {
   process.stderr.write(JSON.stringify({ error, code }) + "\n")
@@ -22,6 +25,7 @@ export function useOfficialApi(allowUnofficial: boolean): boolean {
 export async function apiFetch<T>(url: string, headers: Record<string, string> = {}): Promise<T> {
   let delay = 500
   for (let attempt = 0; attempt <= 6; attempt++) {
+    httpRequests++
     const response = await fetch(url, {
       headers: { "User-Agent": "wanted-search-cli/1.0 (personal job search)", Accept: "application/json", ...headers },
       signal: AbortSignal.timeout(15000),

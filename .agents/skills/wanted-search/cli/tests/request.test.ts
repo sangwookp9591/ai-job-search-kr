@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test"
-import { apiFetch, useOfficialApi } from "../src/helpers.js"
+import { apiFetch, useOfficialApi, getHttpRequests, resetHttpRequests } from "../src/helpers.js"
 const oldFetch = globalThis.fetch
 const oldTimer = globalThis.setTimeout
 const oldEnv = { id: process.env.WANTED_CLIENT_ID, secret: process.env.WANTED_CLIENT_SECRET, allow: process.env.WANTED_ALLOW_UNOFFICIAL }
@@ -39,10 +39,12 @@ describe("request behavior", () => {
     expect(new Headers(init?.headers).get("user-agent")).toContain("wanted-search-cli")
   })
   test("retries a 429 before success", async () => {
+    resetHttpRequests()
     let n = 0
     globalThis.setTimeout = ((fn: (...args: any[]) => void) => oldTimer(fn, 0)) as typeof setTimeout
     globalThis.fetch = (async () => ++n === 1 ? new Response("", { status: 429 }) : new Response('{"ok":true}')) as unknown as typeof fetch
     expect(await apiFetch<{ok:boolean}>("https://example.test")).toEqual({ ok: true })
     expect(n).toBe(2)
+    expect(getHttpRequests()).toBe(2)
   })
 })

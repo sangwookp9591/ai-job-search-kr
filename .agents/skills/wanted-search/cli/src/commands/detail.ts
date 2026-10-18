@@ -1,6 +1,6 @@
 import { defineCommand, option } from "@bunli/core"
 import { z } from "zod"
-import { apiFetch, useOfficialApi, OPENAPI_BASE, WEB_BASE, normalizeDetail, writeError, type Job } from "../helpers.js"
+import { apiFetch, useOfficialApi, OPENAPI_BASE, WEB_BASE, normalizeDetail, writeError, type Job, resetHttpRequests, getHttpRequests } from "../helpers.js"
 
 export function parseJobId(value: string): string | null {
   const text = value.trim()
@@ -18,7 +18,7 @@ export const detail = defineCommand({
     format: option(z.enum(["json", "plain"]).default("json"), { description: "출력 형식" }),
     unofficial: option(z.boolean().default(false), { description: "비공식 웹 JSON 사용을 허용 (개인 사용 전용, robots 정책 미확인)" }),
   },
-  handler: async ({ positional, flags }) => {
+  handler: async ({ positional, flags }) => { resetHttpRequests();
     const input = positional[0]
     if (!input) { writeError("Job ID or URL is required", "MISSING_REQUIRED"); process.exit(1) }
     const id = parseJobId(input)
@@ -30,8 +30,8 @@ export const detail = defineCommand({
     try {
       const raw = await apiFetch<any>(url, headers)
       const result = normalizeDetail(raw, official ? "wanted-openapi" : "wanted-web")
-      if (flags.format === "json") console.log(JSON.stringify(result, null, 2))
-      else outputPlain(result)
+      if (flags.format === "json") console.log(JSON.stringify({ meta: { http_requests: getHttpRequests() }, result }, null, 2))
+      else { process.stderr.write(`http_requests: ${getHttpRequests()}\n`); outputPlain(result) }
     } catch (e) { writeError(e instanceof Error ? e.message : String(e), "API_ERROR"); process.exit(1) }
   },
 })

@@ -1,5 +1,8 @@
 import { parse } from "node-html-parser"
 export const BASE_URL = "https://www.jobkorea.co.kr"
+let httpRequests = 0
+export function resetHttpRequests(): void { httpRequests = 0 }
+export function getHttpRequests(): number { return httpRequests }
 export function writeError(error: string, code: string): void { process.stderr.write(JSON.stringify({ error, code }) + "\n") }
 export function enrichmentEnabled(args:string[], optionValue:boolean):boolean { return optionValue&&!args.some(value=>value==="--no-enrich"||value.startsWith("--no-enrich=")) }
 export function careerMatches(career:string|null, requested:string|undefined):boolean {
@@ -13,6 +16,7 @@ export function careerMatches(career:string|null, requested:string|undefined):bo
 export async function htmlFetch(url: string): Promise<string> {
   let delay = 500
   for (let attempt = 0; attempt <= 4; attempt++) {
+    httpRequests++
     const response = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0 (compatible; jobkorea-cli/0.1; personal job search)", Accept: "text/html,application/xhtml+xml", "Accept-Language": "ko-KR,ko;q=0.9" }, redirect: "follow", signal: AbortSignal.timeout(15000) })
     if (response.status === 429 || response.status >= 500) {
       if (attempt === 4) throw new Error(`요청 실패: HTTP ${response.status}`)

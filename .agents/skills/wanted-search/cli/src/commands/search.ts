@@ -1,6 +1,6 @@
 import { defineCommand, option } from "@bunli/core"
 import { z } from "zod"
-import { apiFetch, useOfficialApi, OPENAPI_BASE, WEB_BASE, normalizeSearch, writeError, type Job } from "../helpers.js"
+import { apiFetch, useOfficialApi, OPENAPI_BASE, WEB_BASE, normalizeSearch, writeError, type Job, resetHttpRequests, getHttpRequests } from "../helpers.js"
 
 export const search = defineCommand({
   name: "search", description: "원티드 채용공고 검색",
@@ -14,7 +14,7 @@ export const search = defineCommand({
     unofficial: option(z.boolean().default(false), { description: "비공식 웹 JSON 사용을 허용 (개인 사용 전용, robots 정책 미확인)" }),
     format: option(z.enum(["json", "table", "plain"]).default("json"), { description: "출력 형식" }),
   },
-  handler: async ({ flags }) => {
+  handler: async ({ flags }) => { resetHttpRequests();
     if (!flags.query?.trim()) { writeError("--query is required", "MISSING_REQUIRED"); process.exit(1) }
     const official = useOfficialApi(flags.unofficial)
     if (!official) process.stderr.write("⚠️ 정책 미확인 비공식 엔드포인트: 개인 사용 전용입니다.\n")
@@ -30,10 +30,10 @@ export const search = defineCommand({
       if (flags.career === "신입") results = results.filter((job) => job.annual_from === 0)
       else if (flags.career === "경력") results = results.filter((job) => (job.annual_from ?? 0) > 0)
       if (flags.sort === "date") results.sort((a, b) => (b.posted_at ?? "").localeCompare(a.posted_at ?? ""))
-      const out = { meta: { total: raw.total_count ?? raw.total ?? null, page: flags.page, limit: flags.limit, source: official ? "wanted-openapi" : "wanted-web" }, results }
+      const out = { meta: { http_requests: getHttpRequests(), total: raw.total_count ?? raw.total ?? null, page: flags.page, limit: flags.limit, source: official ? "wanted-openapi" : "wanted-web" }, results }
       if (flags.format === "json") console.log(JSON.stringify(out, null, 2))
-      else if (flags.format === "table") outputTable(results)
-      else outputPlain(results)
+      else if (flags.format === "table") { process.stderr.write(`http_requests: ${getHttpRequests()}\n`); outputTable(results) }
+      else { process.stderr.write(`http_requests: ${getHttpRequests()}\n`); outputPlain(results) }
     } catch (e) { writeError(e instanceof Error ? e.message : String(e), "API_ERROR"); process.exit(1) }
   },
 })
