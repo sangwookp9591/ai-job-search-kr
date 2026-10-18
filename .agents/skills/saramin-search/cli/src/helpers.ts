@@ -34,13 +34,17 @@ export function parseApi(data: any): Job[] {
   })
 }
 export function filterJobsByCareer(jobs: Job[], career?: string): Job[] {
-  if (!career || !/^\s*신입\s*$/.test(career)) return jobs
-  // Saramin search cards can include paid placements outside the selected filter.
-  // Keep only entry-level, mixed entry-level/career, and career-agnostic cards.
-  return jobs.filter(job => /^(?:신입|신입\s*[·/]\s*경력|경력무관)$/.test((job.career ?? "").replace(/\s+/g, " ").trim()))
+  if (!career || !/^\s*(?:신입|경력)\s*$/.test(career)) return jobs
+  // Search cards, including paid placements, can escape the server-side filter.
+  const allowed = /^\s*(?:신입|신입\s*[·/]\s*경력|경력무관)\s*$/
+  return jobs.filter(job => {
+    const value = (job.career ?? "").replace(/\s+/g, " ").trim()
+    return career.trim() === "신입" ? allowed.test(value) : /^(?:경력\s*\d+(?:\s*[~～-]\s*\d+)?\s*년(?:\s*(?:↑|이상|이하|\+))?|경력무관|신입\s*[·/]\s*경력)$/.test(value)
+  })
 }
 export function applyWebCareerFilter(params: URLSearchParams, career?: string): void {
   if (/^\s*신입\s*$/.test(career ?? "")) { params.set("exp_cd", "1"); params.set("exp_none", "y") }
+  else if (/^\s*경력\s*$/.test(career ?? "")) { params.set("exp_cd", "2"); params.set("exp_none", "y") }
   else if (career) params.set("career", career)
 }
 export function deadlineFields(raw: string | null | undefined, now = new Date()): { deadline: string | null; deadline_text: string | null } {
