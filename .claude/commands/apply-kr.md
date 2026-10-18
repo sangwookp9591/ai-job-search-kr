@@ -10,6 +10,8 @@
 
 **기준 문서:** `.claude/skills/job-application-assistant/10-korean-applications.md`(한국 시장 규칙), `03-writing-style.md`·`08-application-forms.md`·`04-job-evaluation.md`의 한국 분기. 템플릿은 `templates/kr/`.
 
+**일반 요청도 이 절차다.** `/apply-kr` 없이 "직무 경험 자소서 700자 써줘"처럼 지원서 문장(자기소개서·경력기술서·프로젝트경험·이력서 문장)을 요청받아도 이 문서의 작성·검증 단계(근거표 작성 → 본문 → Step 5 글자 수 → Step 5b 린트 → Step 6 체크리스트)를 건너뛰지 않는다. 먼저 "/apply-kr 절차로 진행합니다"라고 알린다. 사용자가 요청에 프로필 사실을 직접 적었으면 그것이 이번 대화의 사용자 확인 기록이고, 거기에 없는 구현 세부·성과·동기·입사 후 계획은 쓰지 않고 확인 질문으로 돌린다. 대화로만 답하는 요청도 본문을 파일(`documents/applications/_general/<문서명>.md`)로 저장해 Step 5·5b를 거친 뒤 통과한 본문만 보여 준다.
+
 **상시 규칙 - 새 사실은 프로필에 되쓴다.** 사용자가 확인·정정한 사실(수치, 프로젝트 세부, 역할 범위)이 `01-candidate-profile.md`에 없으면 같은 턴에 거기에 기록한다. 대화에만 있는 사실은 다음 세션에서 근거 없는 내용으로 취급되어 삭제된다.
 
 **토큰 절약:** 이미 읽은 파일은 다시 읽지 않는다.
@@ -132,6 +134,19 @@ python3 tools/kr_charcount.py --by-heading --limit N --mode with-spaces document
 - 초과하면 의미를 줄이는 문장부터 덜어 내고, 사실·수치·역할을 지우지 않는다. 다시 측정한다. 너무 모자라게(제한의 80% 미만) 쓰는 것이 불리한지는 기업별로 알 수 없으므로 단정하지 않고 사용자에게 알린다.
 - 최종 글자 수는 실제 입력창에서 사용자가 다시 확인한다고 안내한다.
 
+## Step 5b: 본문 린트 (사용자에게 보여 주기 전 필수)
+
+```bash
+python3 tools/kr_application_lint.py documents/applications/<company>_<role>/자기소개서.md --profile .claude/skills/job-application-assistant/01-candidate-profile.md --format table
+```
+
+경력기술서·프로젝트경험도 같은 방식으로 각각 실행한다. 규칙: `ASPIRATION`(근거 없는 포부), `ANALYSIS`(공고 분석·매칭 선언), `SELF_DISQUALIFY`(묻지 않은 결격 고지), `PLACEHOLDER`(본문 속 자리표시자), `REPEAT_ENDING`(같은 종결형 3연속). 경고 `UNSUPPORTED_CANDIDATE`는 프로필에서 근거를 찾지 못한 문장 후보다.
+
+- exit 2면 위반 문장을 고치거나 삭제하고 **exit 0이 될 때까지 다시 실행**한다. 고치다 사실을 더하지 않는다. 근거가 없어 지운 내용은 확인 질문으로 옮긴다.
+- `UNSUPPORTED_CANDIDATE` 경고가 붙은 문장은 작성 메모 근거표에서 `프로필 원문 표현 / 산출 표현`을 다시 확인한다. 근거를 가리키지 못하면 삭제한다.
+- 린트가 통과해도 Step 6 체크리스트는 생략하지 않는다. 린트는 문장 근거 검증을 대신하지 않는다.
+- 린트 도구를 실행할 수 없으면(권한 거부·오류) 본문을 보여 주지 말고 그 사실을 사용자에게 알린다.
+
 ## Step 6: 한국형 검증 체크리스트 (f)
 
 작성한 파일을 다시 읽고 항목별 통과/실패로 보고한다.
@@ -156,6 +171,7 @@ python3 tools/kr_charcount.py --by-heading --limit N --mode with-spaces document
 - [ ] 각 문항이 질문에 직접 답한다 (첫 두 문장 안에 답이 있다)
 - [ ] 지원동기와 직무 경험 문항이 같은 내용의 복사본이 아니다
 - [ ] 글자 수가 문항별 기준 이내다 (Step 5 결과 기록)
+- [ ] `tools/kr_application_lint.py`가 마지막 본문에서 exit 0이었다 (Step 5b, 일반 요청 포함). `UNSUPPORTED_CANDIDATE` 경고 문장은 근거표로 재확인했다
 - [ ] 필수 자격과 충돌하는 문장이 없다
 - [ ] 본문에 공고 항목명을 인용한 매칭 선언(`~에 해당하는 경험입니다`)이나 자발적 미충족 고백이 없고, 그 내용은 대조표·작성 메모에 있다
 
@@ -222,7 +238,7 @@ python3 tools/kr_charcount.py --by-heading --limit N --mode with-spaces document
 
 - 만든 파일 목록과 tracker 행, 보관한 공고 원문(기존 파일을 둔 경우 그렇게 명시)
 - Step 2 대조표의 미충족·확인 필요 항목 요약
-- Step 5 글자 수 결과와 Step 6 체크리스트
+- Step 5 글자 수 결과, Step 5b 린트 결과(마지막 exit 코드)와 Step 6 체크리스트
 - 사용자가 직접 할 일: 실제 입력창에서 글자 수·줄바꿈·특수문자 확인, 최종 제출은 본인이 한다
 
 > **제출:** 이 명령은 사이트에 제출하지 않는다. 제출 후에는 `/outcome <company>`로 상태를 `applied`로 옮긴다. **면접이 잡히면** `/interview`.

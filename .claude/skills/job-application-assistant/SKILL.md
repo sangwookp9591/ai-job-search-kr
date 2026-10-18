@@ -15,6 +15,7 @@ framework_version: 1.3.4
 ## Market routing (read first)
 
 - **Korean posting** (Korean-language posting, a JobKorea / Saramin / Wanted URL, or Korean application questions with character limits): read `10-korean-applications.md` and run `/apply-kr`. It produces Markdown text deliverables (공고분석, 자기소개서, 경력기술서 or 프로젝트경험) under `documents/applications/<company>_<role>/`, with no PDF or LaTeX. Follow the Korean branches in `03-writing-style.md`, `04-job-evaluation.md` and `08-application-forms.md`. A Korean posting gets Korean deliverables.
+- **Any Korean application sentence request, with or without `/apply-kr`** ("직무 경험 자소서 700자 써줘", "경력기술서 써줘", "프로젝트경험 정리해줘", 이력서 문장): do not answer from the general workflow below. Say "/apply-kr 절차로 진행합니다" and run `.claude/commands/apply-kr.md`'s writing and verification steps as written: evidence table (every sentence mapped to a profile line or a user-confirmed record) → body → character count (`tools/kr_charcount.py`) → lint (`python3 tools/kr_application_lint.py <file> --profile .claude/skills/job-application-assistant/01-candidate-profile.md --format table`, repeat until exit 0, re-check `UNSUPPORTED_CANDIDATE` warnings against the table) → Korean checklist. A chat-only request still saves the body to a file (`documents/applications/_general/`) so the lint can run; only linted text is shown. No posting URL or pasted posting does not skip any of this.
 - **Everything else** (English, Danish and other markets): the workflow below, unchanged.
 
 ## Workflow
@@ -81,5 +82,5 @@ The user may also ask for individual steps without the full workflow:
 - "Write a CV for [company]" - Step 2 only
 - "Write a cover letter for [role] at [company]" - Step 3 only
 - "Help me prepare for an interview at [company]" - Step 4 only
-- "이 공고 지원서 써줘" / a Korean posting - `/apply-kr` (see Market routing)
+- "이 공고 지원서 써줘" / a Korean posting / "자소서 써줘" without a command - `/apply-kr` procedure incl. the lint (see Market routing)
 - "What jobs should I look for?" - Career strategy discussion using profile + evaluation framework

@@ -60,6 +60,8 @@ ALLOWED_PERMISSIONS = {
     "Bash(python3 tools/job_key.py:*)",
     "Bash(python tools/kr_charcount.py:*)",
     "Bash(python3 tools/kr_charcount.py:*)",
+    "Bash(python tools/kr_application_lint.py:*)",
+    "Bash(python3 tools/kr_application_lint.py:*)",
     "Bash(python tools/verify_pdf.py:*)",
     "Bash(python3 tools/verify_pdf.py:*)",
     "Bash(python tools/verify_layout.py:*)",

@@ -43,7 +43,7 @@
 - 새로 클론한 폴더는 신뢰되지 않은 작업 공간이라 `.claude/settings.json`의 권한 설정이 무시됩니다. 그 상태로 `claude -p`를 실행하면 포털 CLI(`bun run .agents/skills/...`)가 승인되지 않아 멈춥니다. 폴더에서 `claude`를 한 번 대화형으로 실행해 신뢰를 승인하거나, `--allowedTools`로 필요한 명령만 허용하세요.
 
   ```bash
-  claude -p "/apply-kr <공고 URL> ..." --allowedTools "Bash(bun run .agents/skills/saramin-search/cli/src/cli.ts *)" "Bash(python3 tools/kr_charcount.py *)"
+  claude -p "/apply-kr <공고 URL> ..." --allowedTools "Bash(bun run .agents/skills/saramin-search/cli/src/cli.ts *)" "Bash(python3 tools/kr_charcount.py *)" "Bash(python3 tools/kr_application_lint.py *)"
   ```
 
 - 원티드는 공식 API 키가 없으면 `search`·`detail` 모두 `--unofficial` 플래그(또는 환경변수 `WANTED_ALLOW_UNOFFICIAL=1`)를 줘야 합니다. 키도 플래그도 없으면 `AUTH_REQUIRED`로 끝납니다. 비공식 경로이므로 개인·저빈도 조회에만 쓰고, 사용하기 어렵다면 공고 본문을 직접 붙여 넣으세요.
