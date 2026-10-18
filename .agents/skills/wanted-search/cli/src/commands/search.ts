@@ -38,9 +38,9 @@ export const search = defineCommand({
   },
 })
 function outputTable(rows: Job[]) {
-  console.log("id       title                                      company                location                       date")
-  for (const j of rows) console.log(`${j.id.padEnd(8)} ${j.title.slice(0, 40).padEnd(40)} ${(j.company ?? "-").slice(0, 22).padEnd(22)} ${j.location ?? "-"} ${j.date ?? "-"}`)
+  console.log("id       title                                      company                location                       date       마감")
+  for (const j of rows) console.log(`${j.id.padEnd(8)} ${j.title.slice(0, 40).padEnd(40)} ${(j.company ?? "-").slice(0, 22).padEnd(22)} ${(j.location ?? "-").slice(0, 30).padEnd(30)} ${(j.date ?? "-").padEnd(10)} ${j.deadline ?? j.deadline_text}`)
 }
 function outputPlain(rows: Job[]) {
-  for (const j of rows) console.log(`id: ${j.id}\ntitle: ${j.title}\ncompany: ${j.company ?? "-"}\nlocation: ${j.location ?? "-"}\ndate: ${j.date ?? "-"}\ncareer: ${j.career ?? "-"}\nurl: ${j.url}\nsource: ${j.source}\n`)
+  for (const j of rows) console.log(`id: ${j.id}\ntitle: ${j.title}\ncompany: ${j.company ?? "-"}\nlocation: ${j.location ?? "-"}\ndate: ${j.date ?? "-"}\ndeadline: ${j.deadline ?? "-"}\ndeadline_text: ${j.deadline_text}\ndeadline_status: ${j.deadline_status}\ncareer: ${j.career ?? "-"}\nurl: ${j.url}\nsource: ${j.source}\n`)
 }

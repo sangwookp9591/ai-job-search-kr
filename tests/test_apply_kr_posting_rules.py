@@ -6,7 +6,7 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parent.parent
 APPLY_KR = (REPO / ".claude" / "commands" / "apply-kr.md").read_text(encoding="utf-8")
 GUIDE = (REPO / ".claude" / "skills" / "job-application-assistant" / "10-korean-applications.md").read_text(encoding="utf-8")
-CLAUDE_MD = (REPO / "CLAUDE.md").read_text(encoding="utf-8")
+CLAUDE_MD = (REPO / "CLAUDE.md").read_text(encoding="utf-8") + (REPO / ".claude" / "rules" / "kr-application.md").read_text(encoding="utf-8")
 README_KO = (REPO / "README.ko.md").read_text(encoding="utf-8")
 TEMPLATE = (REPO / "templates" / "kr" / "공고분석.md").read_text(encoding="utf-8")
 

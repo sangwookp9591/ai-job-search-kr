@@ -44,7 +44,7 @@ export const detail = defineCommand({
   },
 })
 function outputPlain(j: Job) {
-  console.log(`제목: ${j.title}\n회사: ${j.company ?? "-"}\n위치: ${j.location ?? "-"}\n경력: ${j.career ?? "-"}\n학력: ${j.education ?? "-"}\n고용형태: ${j.employment_type ?? "-"}\n보상금: ${j.reward ? JSON.stringify(j.reward) : "-"}\n태그: ${j.tags?.join(", ") || "-"}\n마감: ${j.deadline ?? "-"}\nURL: ${j.url}\n출처: ${j.source}`)
+  console.log(`제목: ${j.title}\n회사: ${j.company ?? "-"}\n위치: ${j.location ?? "-"}\n경력: ${j.career ?? "-"}\n학력: ${j.education ?? "-"}\n고용형태: ${j.employment_type ?? "-"}\n보상금: ${j.reward ? JSON.stringify(j.reward) : "-"}\n태그: ${j.tags?.join(", ") || "-"}\n마감: ${j.deadline ?? "-"}\n마감 문구: ${j.deadline_text}\n마감 상태: ${j.deadline_status}\nURL: ${j.url}\n출처: ${j.source}`)
   const labels: Record<string, string> = { main_tasks: "주요업무", requirements: "자격요건", preferred_points: "우대사항", benefits: "혜택" }
   for (const [key, label] of Object.entries(labels)) console.log(`\n[${label}]\n${j.sections?.[key as keyof NonNullable<Job["sections"]>] ?? "-"}`)
 }

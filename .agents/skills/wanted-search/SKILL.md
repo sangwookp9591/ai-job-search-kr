@@ -29,7 +29,17 @@ WANTED_ALLOW_UNOFFICIAL=1 bun run .agents/skills/wanted-search/cli/src/cli.ts de
 
 - `search`: `-q, --query` 필수, `--page` 1부터 시작, `--limit` 1~100, `--location`, `--career 신입|경력`, `--sort`, `--format json|table|plain`
 - `detail <id|url>`: 숫자 공고 ID 또는 `wanted.co.kr/wd/<id>` URL, `--format json|plain`
-- 출력 공통 필드: `id`, `title`, `company`, `location`, `posted_at`, `deadline`, `career`, `education`, `employment_type`, `url`, `source`. 연차 범위(`annual_from`, `annual_to`), 태그, 추천 보상금도 있으면 포함합니다.
+- 출력 공통 필드: `id`, `title`, `company`, `location`, `posted_at`, `deadline`, `deadline_text`, `deadline_status`, `career`, `education`, `employment_type`, `url`, `source`. 연차 범위(`annual_from`, `annual_to`), 태그, 추천 보상금도 있으면 포함합니다.
+- 마감 필드는 ISO 날짜인 `deadline`과 표시 문구인 `deadline_text`를 구분합니다. 확인된 날짜는 `deadline_status: "fixed"`, 비공식 웹 응답의 명시적 `due_time: null`(공개 공고 화면의 `상시채용` 표기와 대조됨)이나 원천의 상시·수시 문구는 `deadline: null`, `deadline_text: "상시"` 또는 원문 문구, `deadline_status: "rolling"`으로 출력합니다. 마감 필드가 없거나 공식 API의 의미를 확인하지 못한 null은 `deadline: null`, `deadline_text: "마감일 미표기"`, `deadline_status: "unknown"`입니다.
+- 세 포털의 마감 필드 의미 비교:
+
+  | 포털 | `deadline` | `deadline_text` | `deadline_status` |
+  |---|---|---|---|
+  | 원티드 | 확인된 고정 마감의 ISO 날짜, 아니면 `null` | 원천 상시 문구 또는 검증된 비공식 웹 null의 `상시`; 불명확/누락은 `마감일 미표기` | `fixed`, `rolling`, `unknown`으로 명시 |
+  | 사람인 | 카드에서 파싱한 ISO 날짜; 상시채용·채용시는 `null` | 상시채용·채용시 등 원문 문구 보존 | 별도 필드 없음; 날짜면 fixed, 비확정 문구면 rolling으로 해석 가능 |
+  | 잡코리아 | 검색 보강 또는 상세에서 얻은 ISO 날짜; 미확인은 `null` | 비확정 마감 표기가 있으면 원문 보존 | 별도 필드 없음; `valid_through`는 별도 원천 필드이며 비확정 문구를 대체하지 않음 |
+
+  원천 필드가 누락된 경우와 null의 의미를 확인하지 못한 경우는 상시채용으로 추정하지 않습니다. 사람인/잡코리아의 필드 처리와 검색 보강 동작은 각 포털 스킬 문서를 따릅니다.
 - 상세 JSON에는 지원서 작성에 필요한 `sections` 객체가 있으며 `main_tasks`, `requirements`, `preferred_points`, `benefits`를 별도 보존합니다.
 - 인증은 `WANTED_CLIENT_ID`, `WANTED_CLIENT_SECRET` 환경변수로만 설정합니다. 비밀값을 명령행이나 저장소에 넣지 마세요.
 - 공식 키 발급은 [Wanted OpenAPI 포털](https://openapi.wanted.jobs/)에서 연동을 신청하세요. `--unofficial` 및 `WANTED_ALLOW_UNOFFICIAL=1`은 robots 정책 미확인인 비공식 웹 JSON을 개인 구직 용도로 호출하도록 명시적으로 허용합니다. 권한을 부여하지 않으려면 공고 URL이나 본문을 `/apply-kr`에 직접 붙여넣으세요.

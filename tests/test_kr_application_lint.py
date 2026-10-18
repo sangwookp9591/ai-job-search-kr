@@ -5,6 +5,7 @@ import io
 import json
 import tempfile
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
 from tools.kr_application_lint import lint_text, main
@@ -37,6 +38,16 @@ class ApplicationLintTests(unittest.TestCase):
         self.assertIn("PLACEHOLDER", self.rules("# 답변\nTODO 확인"))
         self.assertNotIn("PLACEHOLDER", self.rules("# 답변\n문서에 대괄호가 포함됩니다."))
         self.assertNotIn("PLACEHOLDER", self.rules("# 답변\n[작성 필요: 경험을 적어 주세요]"))
+        self.assertNotIn("PLACEHOLDER", self.rules("# 답변\n[Spring Boot 주문 API]를 구현했습니다."))
+        self.assertIn("PLACEHOLDER", self.rules("# 답변\n[YOUR_COMPANY]에 지원합니다."))
+
+    def test_question_placeholder_ignores_analysis_and_aspiration(self):
+        text = "## 문항 1 지원동기\n[작성 필요: 공고의 어떤 요구사항에 기여하고 싶은지 알려 주세요.]\n[작성 필요: 입사 후 성장하고 싶은 분야를 알려 주세요.]"
+        self.assertEqual(self.rules(text), [])
+
+    def test_metadata_before_first_question_is_excluded(self):
+        text = "# 자기소개서\n작성일: 공고의 요구사항을 대조했습니다.\n근거: [회사명]\n## 문항 1\nSpring Boot로 주문 API를 구현했습니다."
+        self.assertEqual(self.rules(text), [])
 
     def test_repeat_ending_positive_and_negative(self):
         self.assertIn("REPEAT_ENDING", self.rules("# 답변\n기능을 만들었습니다. 테스트를 작성했습니다. 결과를 확인했습니다."))
@@ -71,6 +82,18 @@ class ApplicationLintTests(unittest.TestCase):
             self.assertEqual(code, 0)
             self.assertIn("UNSUPPORTED_CANDIDATE", output.getvalue())
 
+    def test_evidence_mode_suppresses_candidate_overlap_warning(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source, evidence, profile = (Path(directory) / name for name in ("answer.md", "evidence.md", "profile.md"))
+            source.write_text("## 문항 1\n우주선 항법 장치를 설계하며 양자 상태를 분석했습니다.", encoding="utf-8")
+            evidence.write_text("| 문장 | 근거 |\n|---|---|\n| 우주선 항법 장치를 설계하며 양자 상태를 분석했습니다. | 지원자 답변 |", encoding="utf-8")
+            profile.write_text("Spring Boot 주문 API 프로젝트", encoding="utf-8")
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                code = main([str(source), "--evidence", str(evidence), "--profile", str(profile), "--format", "json"])
+            self.assertEqual(code, 0)
+            self.assertEqual(json.loads(output.getvalue())["results"][0]["warnings"], [])
+
     def test_json_format_and_rule_exit_code(self):
         output = io.StringIO()
         with contextlib.redirect_stdout(output):
@@ -78,6 +101,46 @@ class ApplicationLintTests(unittest.TestCase):
         # stdin is empty in the test runner, which is a clean input.
         self.assertEqual(code, 0)
         self.assertEqual(json.loads(output.getvalue()), {"results": [{"file": "stdin", "violations": [], "warnings": []}]})
+
+    def test_evidence_table_matching_and_empty(self):
+        with tempfile.TemporaryDirectory() as directory:
+            answer, evidence = Path(directory) / "answer.md", Path(directory) / "evidence.md"
+            answer.write_text("## 문항 1\n안내 글을 작성했습니다.\n추가 공지를 게시했습니다.", encoding="utf-8")
+            evidence.write_text("| 문장 | 근거 | 프로필 원문 동사 / 산출 동사 |\n|---|---|---|\n| 안내 글을 작성했습니다. | 프로필 항목 | 작성 / 작성 |\n| 추가 공지를 게시했습니다. | 없음 | 게시 / 게시 |", encoding="utf-8")
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                code = main([str(answer), "--evidence", str(evidence), "--format", "json"])
+            self.assertEqual(code, 2)
+            rules = [v["rule"] for v in json.loads(output.getvalue())["results"][0]["violations"]]
+            self.assertEqual(rules, ["EVIDENCE_EMPTY"])
+
+    def test_evidence_missing_and_negative_analysis(self):
+        with tempfile.TemporaryDirectory() as directory:
+            answer, evidence, analysis = (Path(directory) / name for name in ("answer.md", "evidence.md", "analysis.md"))
+            answer.write_text("## 문항 1\n확인된 문장입니다.\n누락된 문장입니다.", encoding="utf-8")
+            evidence.write_text("| 문장 | 근거 |\n|---|---|\n| 확인된 문장입니다. | 프로필 항목 |", encoding="utf-8")
+            analysis.write_text("| 요구사항 | 관련 내 경험 | 근거 | 판정 |\n|---|---|---|---|\n| 마케팅 경력 | 없음 | 프로필에 없음 | 미충족 |", encoding="utf-8")
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                code = main([str(answer), "--evidence", str(evidence), "--analysis", str(analysis), "--format", "json"])
+            self.assertEqual(code, 2)
+            rules = [v["rule"] for v in json.loads(output.getvalue())["results"][0]["violations"]]
+            self.assertEqual(rules, ["EVIDENCE_MISSING", "UNSUPPORTED_NEGATIVE"])
+
+    def test_supported_negative_quote_must_exist_in_profile(self):
+        analysis = '| 요구사항 | 근거 | 판정 |\n|---|---|---|\n| 광고 경험 | 명시 부정: 프로필 "광고 집행 경험 없음" | 미충족 |'
+        from tools.kr_application_lint import _negative_check
+        self.assertEqual(_negative_check(analysis, "광고 집행 경험 없음"), [])
+        self.assertEqual(_negative_check(analysis, "광고 경험 있음")[0]["rule"], "UNSUPPORTED_NEGATIVE")
+        unrelated = '| 요구사항 | 근거 | 판정 |\n|---|---|---|\n| 퍼포먼스 마케팅 경력 | 명시 부정: 프로필 "광고 집행 경험 없음" | 미충족 |'
+        self.assertEqual(_negative_check(unrelated, "광고 집행 경험 없음")[0]["rule"], "UNSUPPORTED_NEGATIVE")
+
+    def test_no_arguments_with_tty_stops_with_usage_error(self):
+        class TtyInput(io.StringIO):
+            def isatty(self):
+                return True
+        with contextlib.redirect_stderr(io.StringIO()), patch("sys.stdin", TtyInput("")):
+            self.assertEqual(main([]), 1)
 
 
 if __name__ == "__main__":

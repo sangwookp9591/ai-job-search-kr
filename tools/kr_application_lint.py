@@ -37,7 +37,83 @@ def _terms(text: str) -> set[str]:
 ASPIRATION = re.compile(r"겠습니다|싶습니다|하겠다|노력하|기여하고자|성장하|익혀\s*가겠|키우겠|배우겠")
 ANALYSIS = re.compile(r"에 해당하는|공고의.{0,40}(?:요구|우대|자격|업무|개발)|요구사항|대조|충족|미충족")
 SELF_DISQUALIFY = re.compile(r"경험은 없|경험이 없|없습니다만|부족하지만")
-PLACEHOLDER = re.compile(r"\[[^\]]*\]|\bTODO\b|\[YOUR_[^\]]*\]", re.IGNORECASE)
+PLACEHOLDER = re.compile(r"\[(?:YOUR_[^\]]*|\d+\s*개|프로젝트명|회사명|작성\s*필요[^\]]*|[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+|\.{2,}|OO+)\]|\bTODO\b", re.IGNORECASE)
+QUESTION_PLACEHOLDER = re.compile(r"^\s*(?:\[작성\s*필요\s*:[^\]]*\]\s*)+$")
+
+
+def _submission_sections(text: str):
+    sections = split_headings(text)
+    # Application files have a metadata preamble; only 문항 sections are submitted.
+    first_question = next((i for i, (heading, _) in enumerate(sections)
+                           if heading.startswith("##") and "문항" in heading and not is_note_section(heading)), None)
+    if first_question is not None:
+        sections = sections[first_question:]
+    return sections
+
+
+def _cells(line: str) -> list[str]:
+    return [cell.strip() for cell in line.strip().strip("|").split("|")]
+
+
+def _markdown_tables(text: str):
+    lines = text.splitlines()
+    for i, line in enumerate(lines[:-1]):
+        if "|" not in line or not re.fullmatch(r"\s*\|?\s*:?-{3,}:?\s*(?:\|\s*:?-{3,}:?\s*)+\|?\s*", lines[i + 1]):
+            continue
+        headers = [re.sub(r"\s+", " ", c).strip().lower() for c in _cells(line)]
+        rows = []
+        for row_line in lines[i + 2:]:
+            if "|" not in row_line:
+                break
+            cells = _cells(row_line)
+            if len(cells) == len(headers):
+                rows.append(dict(zip(headers, cells)))
+        yield headers, rows
+
+
+def _normalized(text: str) -> str:
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def _evidence_check(body: str, evidence: str) -> list[dict]:
+    violations = []
+    rows = []
+    for headers, table_rows in _markdown_tables(evidence):
+        sentence_col = next((h for h in headers if h == "문장"), None)
+        evidence_cols = [h for h in headers if h == "근거" or h == "프로필 근거"]
+        if sentence_col and evidence_cols:
+            rows = [(r.get(sentence_col, ""), " ".join(r.get(c, "") for c in evidence_cols)) for r in table_rows]
+            break
+    indexed = {_normalized(sentence): reason for sentence, reason in rows if sentence}
+    for sentence in sentences(body):
+        if _normalized(sentence) not in indexed:
+            violations.append({"section": "본문", "sentence": sentence, "rule": "EVIDENCE_MISSING"})
+        elif not indexed[_normalized(sentence)].strip() or re.fullmatch(r"\s*없음\s*", indexed[_normalized(sentence)]):
+            violations.append({"section": "본문", "sentence": sentence, "rule": "EVIDENCE_EMPTY"})
+    return violations
+
+
+def _negative_check(analysis: str, profile: str | None) -> list[dict]:
+    violations = []
+    for headers, rows in _markdown_tables(analysis):
+        decision = next((h for h in headers if "판정" in h), None)
+        evidence = next((h for h in headers if h == "근거" or "근거" in h), None)
+        requirement = next((h for h in headers if "요구사항" in h), None)
+        if not decision or not evidence:
+            continue
+        for row in rows:
+            if "미충족" not in row.get(decision, ""):
+                continue
+            value = row.get(evidence, "")
+            quotes = re.findall(r'["“”「」]([^"“”「」]+)["“”「」]', value)
+            negation = re.compile(r"없음|없다|아님|안\s*함|미보유|않음|못\s*했|경험\s*없")
+            requirement_terms = _terms(row.get(requirement, "")) if requirement else set()
+            relevant_quotes = [q for q in quotes if _terms(q) & requirement_terms]
+            if ("명시 부정" not in value or not any(negation.search(q) for q in relevant_quotes)
+                    or (profile is not None and not any(q in profile for q in relevant_quotes))):
+                violations.append({"section": "대조표", "sentence": row.get("요구사항", value), "rule": "UNSUPPORTED_NEGATIVE"})
+        break
+    return violations
 
 
 def lint_text(text: str, allowed_aspiration: set[str] | None = None,
@@ -47,7 +123,7 @@ def lint_text(text: str, allowed_aspiration: set[str] | None = None,
     violations: list[dict] = []
     warnings: list[dict] = []
     note_level = 0
-    for heading, content in split_headings(text):
+    for heading, content in _submission_sections(text):
         if heading.startswith("#"):
             level = len(heading) - len(heading.lstrip("#"))
             note_level = level if is_note_section(heading) else (note_level if note_level and level > note_level else 0)
@@ -55,21 +131,22 @@ def lint_text(text: str, allowed_aspiration: set[str] | None = None,
                 continue
         label = heading.lstrip("# ").strip() if heading.startswith("#") else heading
         sents = sentences(content)
-        sole_placeholder = len(sents) == 1 and re.fullmatch(r"\[작성\s*필요\s*:[^\]]*\]", sents[0])
+        question_section = bool(sents) and all(QUESTION_PLACEHOLDER.fullmatch(s) for s in sents)
         previous_ending = None
         repeat_count = 0
         for sentence in sents:
             rules = []
-            if ASPIRATION.search(sentence):
+            is_question_placeholder = bool(QUESTION_PLACEHOLDER.fullmatch(sentence))
+            if not question_section and not is_question_placeholder and ASPIRATION.search(sentence):
                 permitted = any(label == allowed or allowed in label for allowed in allowed_aspiration)
                 core = _terms(sentence)
                 if not permitted or not (core & profile_terms):
                     rules.append("ASPIRATION")
-            if ANALYSIS.search(sentence):
+            if not question_section and not is_question_placeholder and ANALYSIS.search(sentence):
                 rules.append("ANALYSIS")
             if SELF_DISQUALIFY.search(sentence):
                 rules.append("SELF_DISQUALIFY")
-            if not sole_placeholder and PLACEHOLDER.search(sentence):
+            if not question_section and not is_question_placeholder and PLACEHOLDER.search(sentence):
                 rules.append("PLACEHOLDER")
             ending = re.sub(r"[\s.!?。！？\"'”’]+$", "", sentence)
             ending_match = re.search(r"(?:했습니다|었습니다|았습니다|겠습니다|입니다|합니다|됩니다|습니다|어요|아요|해요|다|요)$", ending)
@@ -84,7 +161,7 @@ def lint_text(text: str, allowed_aspiration: set[str] | None = None,
                 rules.append("REPEAT_ENDING")
             for rule in rules:
                 violations.append({"section": label or "본문", "sentence": sentence, "rule": rule})
-            if profile_text and profile_terms:
+            if not question_section and not is_question_placeholder and profile_text and profile_terms:
                 terms = _terms(sentence)
                 ratio = len(terms & profile_terms) / len(terms) if terms else 1.0
                 if len(terms) >= 3 and ratio < 0.2:
@@ -100,19 +177,35 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--allow-aspiration", action="append", default=[], metavar="SECTION",
                         help="포부 표현을 허용할 섹션명 (프로필에 핵심어가 있어야 함)")
     parser.add_argument("--profile", help="지원자 프로필 Markdown 경로")
+    parser.add_argument("--evidence", help="문장별 근거표 Markdown 경로")
+    parser.add_argument("--analysis", help="공고분석 Markdown 경로")
     parser.add_argument("--format", choices=("json", "table"), default="table")
     args = parser.parse_args(argv)
     try:
         inputs = [(str(p), p.read_text(encoding="utf-8")) for p in map(Path, args.files)]
         if not inputs:
+            if sys.stdin.isatty():
+                parser.print_usage(sys.stderr)
+                print("오류: 파일을 지정하거나 표준 입력을 파이프로 전달하세요.", file=sys.stderr)
+                return 1
             inputs = [("stdin", sys.stdin.read())]
         profile = Path(args.profile).read_text(encoding="utf-8") if args.profile else None
+        evidence = Path(args.evidence).read_text(encoding="utf-8") if args.evidence else None
+        analysis = Path(args.analysis).read_text(encoding="utf-8") if args.analysis else None
     except (OSError, UnicodeError) as exc:
         print(f"입력을 읽지 못했습니다: {exc}", file=sys.stderr)
         return 1
     results = []
     for source, content in inputs:
         result = {"file": source, **lint_text(content, set(args.allow_aspiration), profile)}
+        if evidence is not None:
+            result["warnings"] = [w for w in result["warnings"] if w.get("rule") != "UNSUPPORTED_CANDIDATE"]
+        body_sections = _submission_sections(content)
+        body = "\n".join(c for h, c in body_sections if not (h.startswith("#") and is_note_section(h)))
+        if evidence is not None:
+            result["violations"].extend(_evidence_check(body, evidence))
+        if analysis is not None:
+            result["violations"].extend(_negative_check(analysis, profile))
         results.append(result)
     if args.format == "json":
         print(json.dumps({"results": results}, ensure_ascii=False, indent=2))

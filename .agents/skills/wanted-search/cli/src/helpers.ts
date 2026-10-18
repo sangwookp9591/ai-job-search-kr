@@ -49,6 +49,8 @@ export interface Job {
   location: string | null
   posted_at: string | null
   deadline: string | null
+  deadline_text: string
+  deadline_status: "fixed" | "rolling" | "unknown"
   date: string | null
   career: string | null
   education: string | null
@@ -68,7 +70,27 @@ export function normalizeSearch(data: any, source: Job["source"]): Job[] {
     const job = row.job ?? row
     const id = String(job.id ?? job.job_id ?? "")
     const loc = job.address?.full_location ?? job.address?.location ?? job.location ?? null
-    const deadline = job.due_time ?? job.deadline ?? null
+    const hasDueTime = Object.hasOwn(job, "due_time")
+    const rawDeadline = hasDueTime ? job.due_time : job.deadline
+    const deadlineValue = rawDeadline == null ? null : String(rawDeadline).trim()
+    const deadlineDate = deadlineValue && /^\d{4}-\d{2}-\d{2}(?:$|T)/.test(deadlineValue)
+      ? deadlineValue.slice(0, 10)
+      : null
+    const rollingLabel = deadlineValue && /상시|채용시|수시/.test(deadlineValue)
+      ? deadlineValue
+      : null
+    // The public web API's explicit due_time:null is corroborated by the posting
+    // page's "상시채용" label. Missing fields and unverified API nulls stay unknown.
+    const confirmedWebRolling = source === "wanted-web" && hasDueTime && job.due_time === null
+    const deadline = deadlineDate
+    const deadlineText = deadlineDate
+      ? deadlineValue!
+      : rollingLabel ?? (confirmedWebRolling ? "상시" : "마감일 미표기")
+    const deadlineStatus: Job["deadline_status"] = deadlineDate
+      ? "fixed"
+      : rollingLabel || confirmedWebRolling
+        ? "rolling"
+        : "unknown"
     const annualFrom = job.annual_from ?? null
     const annualTo = job.annual_to ?? null
     let career: string | null = null
@@ -84,8 +106,10 @@ export function normalizeSearch(data: any, source: Job["source"]): Job[] {
       company: job.company?.name ?? job.company_name ?? null,
       location: loc,
       posted_at: job.created_at ?? job.posted_at ?? null,
-      deadline: deadline ? (String(deadline).slice(0, 10)) : null,
-      date: job.created_at ?? job.posted_at ? String(job.created_at ?? job.posted_at).slice(0, 10) : deadline ? String(deadline).slice(0, 10) : null,
+      deadline,
+      deadline_text: deadlineText,
+      deadline_status: deadlineStatus,
+      date: job.created_at ?? job.posted_at ? String(job.created_at ?? job.posted_at).slice(0, 10) : deadline,
       career,
       education: job.education ?? null,
       employment_type: job.employment_type ?? null,

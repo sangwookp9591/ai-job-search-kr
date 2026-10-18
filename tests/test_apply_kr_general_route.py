@@ -7,7 +7,7 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parent.parent
 APPLY_KR = (REPO / ".claude" / "commands" / "apply-kr.md").read_text(encoding="utf-8")
 SKILL = (REPO / ".claude" / "skills" / "job-application-assistant" / "SKILL.md").read_text(encoding="utf-8")
-CLAUDE_MD = (REPO / "CLAUDE.md").read_text(encoding="utf-8")
+CLAUDE_MD = (REPO / "CLAUDE.md").read_text(encoding="utf-8") + (REPO / ".claude" / "rules" / "kr-application.md").read_text(encoding="utf-8")
 README_KO = (REPO / "README.ko.md").read_text(encoding="utf-8")
 SETTINGS = json.loads((REPO / ".claude" / "settings.json").read_text(encoding="utf-8"))
 GUARDS = (REPO / "tools" / "security_guards.py").read_text(encoding="utf-8")

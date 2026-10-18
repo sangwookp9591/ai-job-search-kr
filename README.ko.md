@@ -47,7 +47,7 @@
   ```
 
 - 원티드는 공식 API 키가 없으면 `search`·`detail` 모두 `--unofficial` 플래그(또는 환경변수 `WANTED_ALLOW_UNOFFICIAL=1`)를 줘야 합니다. 키도 플래그도 없으면 `AUTH_REQUIRED`로 끝납니다. 비공식 경로이므로 개인·저빈도 조회에만 쓰고, 사용하기 어렵다면 공고 본문을 직접 붙여 넣으세요.
-- `/apply-kr`이 인식되지 않는 헤드리스 환경에서도 한국어 지원서 사실성 규칙(`CLAUDE.md`)은 적용됩니다. 확인 단계를 건너뛰라고 요청해도 기록에 없는 경험·동기는 쓰지 않고 질문으로 돌려줍니다.
+- `/apply-kr`이 인식되지 않는 헤드리스 환경에서도 한국어 지원서 사실성 규칙(`.claude/rules/kr-application.md`)은 적용됩니다. 이 규칙 파일은 프로필(`CLAUDE.md`)과 분리돼 있어, 프로필을 정리하다 `CLAUDE.md`를 덮어써도 Claude Code가 `.claude/rules/*.md`를 시작 시 자동 로드합니다(근거: [Claude Code 메모리 문서](https://code.claude.com/docs/en/memory) — 프로젝트 지침은 `./CLAUDE.md` 또는 `./.claude/CLAUDE.md`, `paths` 없는 `.claude/rules/*.md`는 시작 시 `.claude/CLAUDE.md`와 같은 우선순위로 로드, `@path` import는 4단계까지). `/setup`은 `CLAUDE.md`의 `[PLACEHOLDER]`만 채우고 이 파일은 건드리지 않습니다. 확인 단계를 건너뛰라고 요청해도 기록에 없는 경험·동기는 쓰지 않고 질문으로 돌려줍니다.
 
 ## 문제 해결
 
