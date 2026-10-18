@@ -23,8 +23,18 @@ def force_utf8_output() -> None:
 
 
 def sentences(text: str) -> list[str]:
-    text = re.sub(r"\s*\n+\s*", " ", text.strip())
-    return [part.strip() for part in re.split(r"(?<=[.!?。！？])\s+", text) if part.strip()]
+    # Markdown paragraph and heading boundaries always end a sentence. Keep a
+    # 작성 필요 block intact even when its prompt contains punctuation.
+    parts = []
+    for line in text.strip().splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        if QUESTION_PLACEHOLDER.fullmatch(line):
+            parts.append(line)
+            continue
+        parts.extend(part.strip() for part in re.split(r"(?<=[.!?。！？])\s+", line) if part.strip())
+    return parts
 
 
 def _terms(text: str) -> set[str]:
@@ -91,6 +101,62 @@ def _evidence_check(body: str, evidence: str) -> list[dict]:
         elif not indexed[_normalized(sentence)].strip() or re.fullmatch(r"\s*없음\s*", indexed[_normalized(sentence)]):
             violations.append({"section": "본문", "sentence": sentence, "rule": "EVIDENCE_EMPTY"})
     return violations
+
+
+def _quoted_evidence(text: str) -> list[str]:
+    return re.findall(r'"([^"\n]+)"|“([^”\n]+)”|「([^」\n]+)」', text)
+
+
+def _quote_values(text: str) -> list[str]:
+    return [next(value for value in group if value) for group in _quoted_evidence(text)]
+
+
+def _evidence_profile_check(evidence: str, profile: str | None) -> list[dict]:
+    violations = []
+    for headers, rows in _markdown_tables(evidence):
+        sentence_col = next((h for h in headers if h == "문장"), None)
+        evidence_cols = [h for h in headers if h in {"근거", "프로필 근거"}]
+        if not sentence_col or not evidence_cols:
+            continue
+        for row in rows:
+            sentence = row.get(sentence_col, "")
+            reason = " ".join(row.get(col, "") for col in evidence_cols)
+            if not sentence.strip():
+                continue
+            quotes = _quote_values(reason)
+            if not quotes or (profile is not None and not any(
+                _normalized(quote) in _normalized(profile) for quote in quotes
+            )):
+                violations.append({"section": "근거표", "sentence": sentence,
+                                   "rule": "EVIDENCE_NOT_IN_PROFILE"})
+        break
+    return violations
+
+
+def _evidence_gap_warnings(body: str, evidence: str) -> list[dict]:
+    indexed = {}
+    for headers, rows in _markdown_tables(evidence):
+        sentence_col = next((h for h in headers if h == "문장"), None)
+        evidence_cols = [h for h in headers if h in {"근거", "프로필 근거"}]
+        if sentence_col and evidence_cols:
+            indexed = {_normalized(row.get(sentence_col, "")): " ".join(row.get(c, "") for c in evidence_cols)
+                       for row in rows}
+            break
+    warnings = []
+    for sentence in sentences(body):
+        quote = " ".join(_quote_values(indexed.get(_normalized(sentence), "")))
+        if not quote:
+            continue
+        sentence_terms = _terms(sentence)
+        quote_terms = _terms(quote)
+        missing_terms = sorted(sentence_terms - quote_terms)
+        number_pattern = re.compile(r"\d+(?:[,.]\d+)?\s*(?:%|퍼센트|명|건|개|회|년|개월|주|일|원|배)?")
+        missing_numbers = [n.strip() for n in number_pattern.findall(sentence)
+                           if _normalized(n) not in _normalized(quote)]
+        if missing_terms or missing_numbers:
+            warnings.append({"section": "본문", "sentence": sentence, "rule": "EVIDENCE_GAP",
+                             "missing_terms": missing_terms, "missing_quantities": missing_numbers})
+    return warnings
 
 
 def _negative_check(analysis: str, profile: str | None) -> list[dict]:
@@ -177,9 +243,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--allow-aspiration", action="append", default=[], metavar="SECTION",
                         help="포부 표현을 허용할 섹션명 (프로필에 핵심어가 있어야 함)")
     parser.add_argument("--profile", help="지원자 프로필 Markdown 경로")
-    parser.add_argument("--evidence", help="문장별 근거표 Markdown 경로")
+    parser.add_argument("--evidence", help="문장별 근거표 Markdown 경로 (사용 시 --profile 필수)")
     parser.add_argument("--analysis", help="공고분석 Markdown 경로")
     parser.add_argument("--format", choices=("json", "table"), default="table")
+    parser.epilog = "--evidence를 사용할 때는 --profile을 반드시 함께 지정하세요."
     args = parser.parse_args(argv)
     try:
         inputs = [(str(p), p.read_text(encoding="utf-8")) for p in map(Path, args.files)]
@@ -198,12 +265,15 @@ def main(argv: list[str] | None = None) -> int:
     results = []
     for source, content in inputs:
         result = {"file": source, **lint_text(content, set(args.allow_aspiration), profile)}
-        if evidence is not None:
-            result["warnings"] = [w for w in result["warnings"] if w.get("rule") != "UNSUPPORTED_CANDIDATE"]
         body_sections = _submission_sections(content)
         body = "\n".join(c for h, c in body_sections if not (h.startswith("#") and is_note_section(h)))
         if evidence is not None:
             result["violations"].extend(_evidence_check(body, evidence))
+            result["violations"].extend(_evidence_profile_check(evidence, profile))
+            result["warnings"].extend(_evidence_gap_warnings(body, evidence))
+            if profile is None:
+                result["warnings"].append({"section": "근거표", "sentence": "--profile 없이 근거표를 검사했습니다.",
+                                           "rule": "EVIDENCE_UNVERIFIED"})
         if analysis is not None:
             result["violations"].extend(_negative_check(analysis, profile))
         results.append(result)
@@ -214,7 +284,10 @@ def main(argv: list[str] | None = None) -> int:
             for item in result["violations"]:
                 print(f"위반 [{item['rule']}] {result['file']} / {item['section']} / {item['sentence']}")
             for item in result["warnings"]:
-                print(f"경고 [{item['rule']}] {result['file']} / {item['section']} / {item['sentence']} (겹침 {item['overlap_ratio']:.0%})")
+                detail = f" (겹침 {item['overlap_ratio']:.0%})" if "overlap_ratio" in item else ""
+                if item.get("rule") == "EVIDENCE_GAP":
+                    detail = f" (인용에 없는 핵심어: {', '.join(item['missing_terms'] + item['missing_quantities'])})"
+                print(f"경고 [{item['rule']}] {result['file']} / {item['section']} / {item['sentence']}{detail}")
         if not any(r["violations"] or r["warnings"] for r in results):
             print("위반 없음")
     return 2 if any(r["violations"] for r in results) else 0

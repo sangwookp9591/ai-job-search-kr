@@ -8,7 +8,7 @@ import unittest
 from unittest.mock import patch
 from pathlib import Path
 
-from tools.kr_application_lint import lint_text, main
+from tools.kr_application_lint import lint_text, main, sentences
 
 
 class ApplicationLintTests(unittest.TestCase):
@@ -82,17 +82,18 @@ class ApplicationLintTests(unittest.TestCase):
             self.assertEqual(code, 0)
             self.assertIn("UNSUPPORTED_CANDIDATE", output.getvalue())
 
-    def test_evidence_mode_suppresses_candidate_overlap_warning(self):
+    def test_evidence_mode_keeps_candidate_overlap_warning(self):
         with tempfile.TemporaryDirectory() as directory:
             source, evidence, profile = (Path(directory) / name for name in ("answer.md", "evidence.md", "profile.md"))
             source.write_text("## 문항 1\n우주선 항법 장치를 설계하며 양자 상태를 분석했습니다.", encoding="utf-8")
-            evidence.write_text("| 문장 | 근거 |\n|---|---|\n| 우주선 항법 장치를 설계하며 양자 상태를 분석했습니다. | 지원자 답변 |", encoding="utf-8")
+            evidence.write_text('| 문장 | 근거 |\n|---|---|\n| 우주선 항법 장치를 설계하며 양자 상태를 분석했습니다. | 프로필 "우주선 항법 장치를 설계하며 양자 상태를 분석했습니다" |', encoding="utf-8")
             profile.write_text("Spring Boot 주문 API 프로젝트", encoding="utf-8")
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
                 code = main([str(source), "--evidence", str(evidence), "--profile", str(profile), "--format", "json"])
-            self.assertEqual(code, 0)
-            self.assertEqual(json.loads(output.getvalue())["results"][0]["warnings"], [])
+            self.assertEqual(code, 2)
+            warning_rules = [w["rule"] for w in json.loads(output.getvalue())["results"][0]["warnings"]]
+            self.assertIn("UNSUPPORTED_CANDIDATE", warning_rules)
 
     def test_json_format_and_rule_exit_code(self):
         output = io.StringIO()
@@ -106,19 +107,19 @@ class ApplicationLintTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             answer, evidence = Path(directory) / "answer.md", Path(directory) / "evidence.md"
             answer.write_text("## 문항 1\n안내 글을 작성했습니다.\n추가 공지를 게시했습니다.", encoding="utf-8")
-            evidence.write_text("| 문장 | 근거 | 프로필 원문 동사 / 산출 동사 |\n|---|---|---|\n| 안내 글을 작성했습니다. | 프로필 항목 | 작성 / 작성 |\n| 추가 공지를 게시했습니다. | 없음 | 게시 / 게시 |", encoding="utf-8")
+            evidence.write_text('| 문장 | 근거 | 프로필 원문 동사 / 산출 동사 |\n|---|---|---|\n| 안내 글을 작성했습니다. | 프로필 "안내 글을 작성했습니다" | 작성 / 작성 |\n| 추가 공지를 게시했습니다. | 없음 | 게시 / 게시 |', encoding="utf-8")
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
                 code = main([str(answer), "--evidence", str(evidence), "--format", "json"])
             self.assertEqual(code, 2)
             rules = [v["rule"] for v in json.loads(output.getvalue())["results"][0]["violations"]]
-            self.assertEqual(rules, ["EVIDENCE_EMPTY"])
+            self.assertEqual(rules, ["EVIDENCE_EMPTY", "EVIDENCE_NOT_IN_PROFILE"])
 
     def test_evidence_missing_and_negative_analysis(self):
         with tempfile.TemporaryDirectory() as directory:
             answer, evidence, analysis = (Path(directory) / name for name in ("answer.md", "evidence.md", "analysis.md"))
             answer.write_text("## 문항 1\n확인된 문장입니다.\n누락된 문장입니다.", encoding="utf-8")
-            evidence.write_text("| 문장 | 근거 |\n|---|---|\n| 확인된 문장입니다. | 프로필 항목 |", encoding="utf-8")
+            evidence.write_text('| 문장 | 근거 |\n|---|---|\n| 확인된 문장입니다. | 프로필 "확인된 문장입니다" |', encoding="utf-8")
             analysis.write_text("| 요구사항 | 관련 내 경험 | 근거 | 판정 |\n|---|---|---|---|\n| 마케팅 경력 | 없음 | 프로필에 없음 | 미충족 |", encoding="utf-8")
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
@@ -134,6 +135,33 @@ class ApplicationLintTests(unittest.TestCase):
         self.assertEqual(_negative_check(analysis, "광고 경험 있음")[0]["rule"], "UNSUPPORTED_NEGATIVE")
         unrelated = '| 요구사항 | 근거 | 판정 |\n|---|---|---|\n| 퍼포먼스 마케팅 경력 | 명시 부정: 프로필 "광고 집행 경험 없음" | 미충족 |'
         self.assertEqual(_negative_check(unrelated, "광고 집행 경험 없음")[0]["rule"], "UNSUPPORTED_NEGATIVE")
+
+    def test_evidence_paragraph_boundary_separates_placeholder_from_fact(self):
+        text = "## 문항 1\n[작성 필요: 지원 계기를 알려 주세요.]\n\n팀 프로젝트에서 Spring Boot 주문 API를 구현했습니다."
+        self.assertEqual(sentences(text), ["[작성 필요: 지원 계기를 알려 주세요.]", "팀 프로젝트에서 Spring Boot 주문 API를 구현했습니다."])
+
+    def test_evidence_quote_must_be_profile_verbatim_and_gap_is_warning(self):
+        from tools.kr_application_lint import _evidence_profile_check, _evidence_gap_warnings
+        body = "## 문항 1\n캠페인 참여자가 20% 늘었습니다."
+        evidence = '| 문장 | 근거 |\n|---|---|\n| 캠페인 참여자가 20% 늘었습니다. | 프로필 "안내 글을 작성했습니다" |'
+        self.assertEqual(_evidence_profile_check(evidence, "안내 글을 작성했습니다"), [])
+        self.assertEqual(_evidence_profile_check(evidence, "다른 내용" )[0]["rule"], "EVIDENCE_NOT_IN_PROFILE")
+        warning = _evidence_gap_warnings(body, evidence)[0]
+        self.assertEqual(warning["rule"], "EVIDENCE_GAP")
+        self.assertTrue(warning["missing_quantities"])
+
+    def test_evidence_without_profile_is_unverified_and_quote_required(self):
+        with tempfile.TemporaryDirectory() as directory:
+            answer, evidence = Path(directory) / "answer.md", Path(directory) / "evidence.md"
+            answer.write_text("## 문항 1\n안내 글을 작성했습니다.", encoding="utf-8")
+            evidence.write_text("| 문장 | 근거 |\n|---|---|\n| 안내 글을 작성했습니다. | 프로필 항목 |", encoding="utf-8")
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                code = main([str(answer), "--evidence", str(evidence), "--format", "json"])
+            result = json.loads(output.getvalue())["results"][0]
+            self.assertEqual(code, 2)
+            self.assertIn("EVIDENCE_NOT_IN_PROFILE", [v["rule"] for v in result["violations"]])
+            self.assertIn("EVIDENCE_UNVERIFIED", [w["rule"] for w in result["warnings"]])
 
     def test_no_arguments_with_tty_stops_with_usage_error(self):
         class TtyInput(io.StringIO):
