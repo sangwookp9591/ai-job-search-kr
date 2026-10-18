@@ -45,6 +45,24 @@ class ApplicationLintTests(unittest.TestCase):
         text = "## 문항 1 지원동기\n[작성 필요: 공고의 어떤 요구사항에 기여하고 싶은지 알려 주세요.]\n[작성 필요: 입사 후 성장하고 싶은 분야를 알려 주세요.]"
         self.assertEqual(self.rules(text), [])
 
+    def test_placeholder_paragraph_does_not_hide_fact_in_same_section(self):
+        text = "## 문항 1\n[작성 필요: 지원 계기를 알려 주세요.]\n\n운영 경험은 없지만 프로젝트를 진행했습니다."
+        rules = self.rules(text)
+        self.assertIn("SELF_DISQUALIFY", rules)
+
+    def test_multiline_placeholder_paragraph_is_excluded_from_evidence_checks(self):
+        from tools.kr_application_lint import _evidence_check, _evidence_gap_warnings
+        body = ("## 문항 1 지원동기\n[작성 필요: 지원 계기를 알려 주세요. 질문 목록에 답해 주세요.]\n"
+                "- [작성 필요: 어떤 경험이 있나요?]\n- [작성 필요: 무엇을 배웠나요?]\n\n"
+                "팀 프로젝트에서 주문 API를 구현했습니다.")
+        evidence = '| 문장 | 근거 |\n|---|---|\n| 팀 프로젝트에서 주문 API를 구현했습니다. | 프로필 "팀 프로젝트에서 주문 API를 구현했습니다" |'
+        self.assertEqual(_evidence_check(body, evidence), [])
+        self.assertEqual(_evidence_gap_warnings(body, evidence), [])
+
+    def test_placeholder_sentence_mixed_with_fact_remains_placeholder_violation(self):
+        text = "## 문항 1\n팀 프로젝트에서 [작성 필요: 구체적인 역할] API를 구현했습니다."
+        self.assertIn("PLACEHOLDER", self.rules(text))
+
     def test_metadata_before_first_question_is_excluded(self):
         text = "# 자기소개서\n작성일: 공고의 요구사항을 대조했습니다.\n근거: [회사명]\n## 문항 1\nSpring Boot로 주문 API를 구현했습니다."
         self.assertEqual(self.rules(text), [])
@@ -127,6 +145,20 @@ class ApplicationLintTests(unittest.TestCase):
             self.assertEqual(code, 2)
             rules = [v["rule"] for v in json.loads(output.getvalue())["results"][0]["violations"]]
             self.assertEqual(rules, ["EVIDENCE_MISSING", "UNSUPPORTED_NEGATIVE"])
+
+    def test_evidence_mode_still_flags_unmatched_normal_sentence(self):
+        with tempfile.TemporaryDirectory() as directory:
+            answer, evidence, profile = (Path(directory) / name for name in ("answer.md", "evidence.md", "profile.md"))
+            answer.write_text("## 문항 1\n[작성 필요: 경험을 알려 주세요.]\n\n근거가 없는 일반 문장입니다.", encoding="utf-8")
+            evidence.write_text("| 문장 | 근거 |\n|---|---|\n", encoding="utf-8")
+            profile.write_text("프로젝트 경험", encoding="utf-8")
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                code = main([str(answer), "--evidence", str(evidence), "--profile", str(profile), "--format", "json"])
+            result = json.loads(output.getvalue())["results"][0]
+            self.assertEqual(code, 2)
+            self.assertEqual([v["rule"] for v in result["violations"]], ["EVIDENCE_MISSING"])
+            self.assertEqual(result["violations"][0]["sentence"], "근거가 없는 일반 문장입니다.")
 
     def test_supported_negative_quote_must_exist_in_profile(self):
         analysis = '| 요구사항 | 근거 | 판정 |\n|---|---|---|\n| 광고 경험 | 명시 부정: 프로필 "광고 집행 경험 없음" | 미충족 |'

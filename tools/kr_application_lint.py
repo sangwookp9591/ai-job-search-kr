@@ -23,18 +23,60 @@ def force_utf8_output() -> None:
 
 
 def sentences(text: str) -> list[str]:
-    # Markdown paragraph and heading boundaries always end a sentence. Keep a
-    # 작성 필요 block intact even when its prompt contains punctuation.
+    # Markdown paragraph and heading boundaries always end a sentence. Keep
+    # 작성 필요 lines intact even when their prompt contains punctuation.
     parts = []
     for line in text.strip().splitlines():
         line = line.strip()
         if not line or line.startswith("#"):
             continue
-        if QUESTION_PLACEHOLDER.fullmatch(line):
+        if line.lstrip().startswith("[작성 필요"):
             parts.append(line)
             continue
         parts.extend(part.strip() for part in re.split(r"(?<=[.!?。！？])\s+", line) if part.strip())
     return parts
+
+
+def _is_placeholder_line(line: str) -> bool:
+    return line.lstrip(" -*+").startswith("[작성 필요")
+
+
+def _question_placeholder_paragraphs(text: str) -> list[str]:
+    return [paragraph for paragraph in re.split(r"\n\s*\n|(?=^#{1,6}\s)", text, flags=re.MULTILINE)
+            if (lines := [line for line in paragraph.splitlines() if line.strip() and not line.lstrip().startswith("#")])
+            and all(_is_placeholder_line(line) for line in lines)]
+
+
+def _evidence_sentences(text: str) -> list[str]:
+    """Submitted factual sentences, excluding standalone 작성 필요 paragraphs."""
+    result = []
+    for paragraph in re.split(r"\n\s*\n|(?=^#{1,6}\s)", text, flags=re.MULTILINE):
+        raw_lines = [line for line in paragraph.splitlines() if line.strip() and not line.lstrip().startswith("#")]
+        lines = [line.strip() for line in raw_lines]
+        placeholder_lines = [line for line in raw_lines if _is_placeholder_line(line)]
+        if placeholder_lines and len(placeholder_lines) == len(lines):
+            continue
+        if lines:
+            ordinary = [line for line in lines if not line.startswith("[작성 필요")]
+            if ordinary:
+                result.extend(sentences("\n".join(ordinary)))
+    return result
+
+
+def _without_question_placeholders(text: str) -> str:
+    paragraphs = []
+    for paragraph in re.split(r"(\n\s*\n|(?=^#{1,6}\s))", text, flags=re.MULTILINE):
+        raw_lines = [line for line in paragraph.splitlines() if line.strip() and not line.lstrip().startswith("#")]
+        lines = [line.strip() for line in raw_lines]
+        if lines and all(_is_placeholder_line(line) for line in raw_lines):
+            continue
+        paragraphs.append(paragraph)
+    return "".join(paragraphs)
+
+
+def _submission_text_without_notes(text: str) -> str:
+    return "\n".join(content for heading, content in _submission_sections(text)
+                     if not (heading.startswith("#") and is_note_section(heading)))
 
 
 def _terms(text: str) -> set[str]:
@@ -48,7 +90,6 @@ ASPIRATION = re.compile(r"겠습니다|싶습니다|하겠다|노력하|기여�
 ANALYSIS = re.compile(r"에 해당하는|공고의.{0,40}(?:요구|우대|자격|업무|개발)|요구사항|대조|충족|미충족")
 SELF_DISQUALIFY = re.compile(r"경험은 없|경험이 없|없습니다만|부족하지만")
 PLACEHOLDER = re.compile(r"\[(?:YOUR_[^\]]*|\d+\s*개|프로젝트명|회사명|작성\s*필요[^\]]*|[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+|\.{2,}|OO+)\]|\bTODO\b", re.IGNORECASE)
-QUESTION_PLACEHOLDER = re.compile(r"^\s*(?:\[작성\s*필요\s*:[^\]]*\]\s*)+$")
 
 
 def _submission_sections(text: str):
@@ -95,7 +136,7 @@ def _evidence_check(body: str, evidence: str) -> list[dict]:
             rows = [(r.get(sentence_col, ""), " ".join(r.get(c, "") for c in evidence_cols)) for r in table_rows]
             break
     indexed = {_normalized(sentence): reason for sentence, reason in rows if sentence}
-    for sentence in sentences(body):
+    for sentence in _evidence_sentences(_submission_text_without_notes(body)):
         if _normalized(sentence) not in indexed:
             violations.append({"section": "본문", "sentence": sentence, "rule": "EVIDENCE_MISSING"})
         elif not indexed[_normalized(sentence)].strip() or re.fullmatch(r"\s*없음\s*", indexed[_normalized(sentence)]):
@@ -143,7 +184,7 @@ def _evidence_gap_warnings(body: str, evidence: str) -> list[dict]:
                        for row in rows}
             break
     warnings = []
-    for sentence in sentences(body):
+    for sentence in _evidence_sentences(_submission_text_without_notes(body)):
         quote = " ".join(_quote_values(indexed.get(_normalized(sentence), "")))
         if not quote:
             continue
@@ -196,13 +237,17 @@ def lint_text(text: str, allowed_aspiration: set[str] | None = None,
             if note_level:
                 continue
         label = heading.lstrip("# ").strip() if heading.startswith("#") else heading
+        placeholder_paragraphs = _question_placeholder_paragraphs(content)
+        factual_content = content
+        for paragraph in placeholder_paragraphs:
+            factual_content = factual_content.replace(paragraph, "")
         sents = sentences(content)
-        question_section = bool(sents) and all(QUESTION_PLACEHOLDER.fullmatch(s) for s in sents)
+        question_section = bool(sents) and not sentences(factual_content)
         previous_ending = None
         repeat_count = 0
         for sentence in sents:
             rules = []
-            is_question_placeholder = bool(QUESTION_PLACEHOLDER.fullmatch(sentence))
+            is_question_placeholder = _is_placeholder_line(sentence) and sentence.strip().endswith("]")
             if not question_section and not is_question_placeholder and ASPIRATION.search(sentence):
                 permitted = any(label == allowed or allowed in label for allowed in allowed_aspiration)
                 core = _terms(sentence)
@@ -210,7 +255,7 @@ def lint_text(text: str, allowed_aspiration: set[str] | None = None,
                     rules.append("ASPIRATION")
             if not question_section and not is_question_placeholder and ANALYSIS.search(sentence):
                 rules.append("ANALYSIS")
-            if SELF_DISQUALIFY.search(sentence):
+            if not is_question_placeholder and SELF_DISQUALIFY.search(sentence):
                 rules.append("SELF_DISQUALIFY")
             if not question_section and not is_question_placeholder and PLACEHOLDER.search(sentence):
                 rules.append("PLACEHOLDER")
