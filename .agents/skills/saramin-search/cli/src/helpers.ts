@@ -2,7 +2,7 @@ import { parse } from "node-html-parser"
 
 export const API_URL = "https://oapi.saramin.co.kr/job-search"
 export const WEB_URL = "https://www.saramin.co.kr"
-export type Job = { id: string; title: string; company: string | null; location: string | null; posted_at: string | null; deadline: string | null; deadline_text?: string | null; career: string | null; education: string | null; employment_type: string | null; is_ad?: boolean; url: string; source: "saramin-api" | "saramin-web" }
+export type Job = { id: string; title: string; company: string | null; location: string | null; posted_at: string | null; deadline: string | null; date: string | null; deadline_text?: string | null; career: string | null; education: string | null; employment_type: string | null; is_ad?: boolean; url: string; source: "saramin-api" | "saramin-web" }
 export function writeError(error: string, code: string) { process.stderr.write(JSON.stringify({ error, code }) + "\n") }
 export async function fetchText(url: string, accept = "text/html,application/xhtml+xml") {
   let delay = 500
@@ -17,7 +17,21 @@ export async function fetchText(url: string, accept = "text/html,application/xht
 function value(input: any): string | null { if (input == null) return null; if (typeof input === "string" || typeof input === "number") return String(input); if (Array.isArray(input)) return value(input[0]); return value(input.name ?? input.title ?? input.value) }
 export function parseApi(data: any): Job[] {
   const jobs = data?.jobs?.job ?? []
-  return (Array.isArray(jobs) ? jobs : jobs ? [jobs] : []).map((job: any) => ({ id: String(job.id ?? ""), title: value(job.position?.title) ?? "", company: value(job.company?.detail?.name ?? job.company?.name), location: value(job.position?.location), posted_at: value(job["posting-date"]) ?? (job["posting-timestamp"] ? new Date(Number(job["posting-timestamp"]) * 1000).toISOString() : null), deadline: value(job["expiration-date"]) ?? (job["expiration-timestamp"] ? new Date(Number(job["expiration-timestamp"]) * 1000).toISOString() : null), deadline_text: value(job["expiration-date"]), career: value(job["experience-level"]?.name ?? job["experience-level"]), education: value(job["required-education-level"]?.name ?? job["required-education-level"]), employment_type: value(job.position?.["job-type"]), is_ad: false, url: `${WEB_URL}/zf_user/jobs/relay/view?rec_idx=${job.id}`, source: "saramin-api" as const }))
+  return (Array.isArray(jobs) ? jobs : jobs ? [jobs] : []).map((job: any) => {
+    const postedAt = value(job["posting-date"]) ?? (job["posting-timestamp"] ? new Date(Number(job["posting-timestamp"]) * 1000).toISOString() : null)
+    const deadline = value(job["expiration-date"]) ?? (job["expiration-timestamp"] ? new Date(Number(job["expiration-timestamp"]) * 1000).toISOString() : null)
+    return {
+      id: String(job.id ?? ""),
+      title: value(job.position?.title) ?? "",
+      company: value(job.company?.detail?.name ?? job.company?.name),
+      location: value(job.position?.location),
+      posted_at: postedAt, deadline, date: postedAt ?? deadline,
+      deadline_text: value(job["expiration-date"]), career: value(job["experience-level"]?.name ?? job["experience-level"]),
+      education: value(job["required-education-level"]?.name ?? job["required-education-level"]),
+      employment_type: value(job.position?.["job-type"]), is_ad: false,
+      url: `${WEB_URL}/zf_user/jobs/relay/view?rec_idx=${job.id}`, source: "saramin-api" as const,
+    }
+  })
 }
 export function deadlineFields(raw: string | null | undefined, now = new Date()): { deadline: string | null; deadline_text: string | null } {
   const text = raw?.trim() ?? null
@@ -54,7 +68,16 @@ export function parseWeb(html: string): Job[] {
     const date = deadlineFields(deadlineText)
     const parsedLink = new URL(href, WEB_URL)
     const isAd = parsedLink.searchParams.get("paid_fl") === "y" || /paid_y/.test(card.getAttribute("data-data_layer") ?? "") || /paid_fl=y/.test(href)
-    results.push({ id, title, company: card.querySelector(".corp_name")?.text.trim() || null, location, posted_at: null, ...date, career, education, employment_type: employmentType, is_ad: isAd, url: `${WEB_URL}/zf_user/jobs/relay/view?rec_idx=${id}`, source: "saramin-web" })
+    results.push({
+      id,
+      title,
+      company: card.querySelector(".corp_name")?.text.trim() || null,
+      location,
+      posted_at: null, ...date,
+      date: date.deadline,
+      career, education, employment_type: employmentType,
+      is_ad: isAd, url: `${WEB_URL}/zf_user/jobs/relay/view?rec_idx=${id}`, source: "saramin-web",
+    })
   }
   if (cards.length) { if (!results.length) throw new Error("검색 결과를 파싱하지 못했습니다"); return results }
   for (const anchor of root.querySelectorAll('a[href*="rec_idx="]')) {
@@ -65,7 +88,10 @@ export function parseWeb(html: string): Job[] {
     const title = (anchor.text.trim() || card.querySelector(".job_tit, .tit")?.text.trim() || "").replace(/\s+/g, " ")
     if (title.length < 2) continue
     const body = card.text.replace(/\s+/g, " ")
-    results.push({ id, title, company: card.querySelector(".corp_name, .company_name")?.text.trim() || null, location: body.match(/(?:근무지역|지역)\s*[:：]?\s*([^|]+)/)?.[1]?.trim() ?? null, posted_at: null, deadline: null, career: body.match(/신입(?:·경력)?|경력(?:무관|\s*\d+년)?/)?.[0] ?? null, education: null, employment_type: null, url: href.startsWith("http") ? href : `${WEB_URL}${href.startsWith("/") ? "" : "/"}${href}`, source: "saramin-web" })
+    results.push({ id, title, company: card.querySelector(".corp_name, .company_name")?.text.trim() || null,
+      location: body.match(/(?:근무지역|지역)\s*[:：]?\s*([^|]+)/)?.[1]?.trim() ?? null,
+      posted_at: null, deadline: null, date: null, career: body.match(/신입(?:·경력)?|경력(?:무관|\s*\d+년)?/)?.[0] ?? null,
+      education: null, employment_type: null, url: href.startsWith("http") ? href : `${WEB_URL}${href.startsWith("/") ? "" : "/"}${href}`, source: "saramin-web" })
   }
   if (!results.length) throw new Error("검색 결과를 파싱하지 못했습니다")
   return results
@@ -75,12 +101,16 @@ export function parseDetail(html: string, id: string, url: string, source: Job["
   const title = summary.querySelector('meta[property="og:title"]')?.getAttribute("content")?.split(" | ")[0] ?? summary.querySelector("h1")?.text.trim() ?? ""
   if (!title) throw new Error("공고 제목을 찾지 못했습니다")
   const metaDescription = summary.querySelector('meta[name="description"]')?.getAttribute("content") ?? ""
-  const field = (label: string) => metaDescription.match(new RegExp(`${label}\\s*:\\s*([^,]+)`, "i"))?.[1]?.trim() ?? null
+  const field = (label: string) => metaDescription.match(new RegExp(`${label}\\s*:\\s*(.*?)(?=,\\s*(?:경력|학력|근무지역|고용형태|마감일)\\s*:|$)`, "i"))?.[1]?.trim() ?? null
   const content = root.querySelector(".user_content")
   const imageOnly = Boolean(content && content.querySelectorAll("img").length && content.text.trim().length < 40)
-  const description = content ? parse(content.innerHTML.replace(/<br\s*\/?>/gi, " ").replace(/<\/(?:p|div|li|tr|h[1-6])>/gi, " ")).text.replace(/\s+/g, " ").trim() : ""
+  const description = content ? parse(content.innerHTML
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/(?:p|div|li|tr|h[1-6])>/gi, "\n")
+    .replace(/(모집분야|담당업무|자격요건|우대사항|근무조건|전형절차|접수기간)/g, "\n$1"))
+    .text.replace(/[ \t]*\n[ \t]*/g, "\n").replace(/\n{3,}/g, "\n\n").trim() : ""
   const deadline = deadlineFields(field("마감일"))
-  return { id, title: title.replace(/\s*-\s*사람인$/, ""), company: metaDescription.split(",")[0]?.trim() || title.match(/^\[([^\]]+)\]/)?.[1] || null, location: field("근무지역"), posted_at: null, ...deadline, career: field("경력"), education: field("학력"), employment_type: field("고용형태"), is_ad: false, url, source, description: description || null, image_only: imageOnly }
+  return { id, title: title.replace(/\s*-\s*사람인$/, ""), company: metaDescription.split(",")[0]?.trim() || title.match(/^\[([^\]]+)\]/)?.[1] || null, location: field("근무지역"), posted_at: null, ...deadline, date: deadline.deadline, career: field("경력"), education: field("학력"), employment_type: field("고용형태"), is_ad: false, url, source, description: description || null, image_only: imageOnly }
 }
 export async function loadSearch(query: string, page: number, count: number, filters: { location?: string; career?: string; sort?: string }) {
   const key = process.env.SARAMIN_ACCESS_KEY

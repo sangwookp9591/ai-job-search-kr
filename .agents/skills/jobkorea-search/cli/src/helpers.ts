@@ -15,7 +15,7 @@ export async function htmlFetch(url: string): Promise<string> {
   }
   throw new Error("요청 재시도 초과")
 }
-export interface Job { id:string; title:string; company:string|null; location:string|null; posted_at:string|null; deadline:string|null; deadline_text:string|null; valid_through:string|null; career:string|null; education:string|null; employment_type:string|null; is_ad:boolean; url:string; source:string }
+export interface Job { id:string; title:string; company:string|null; location:string|null; posted_at:string|null; deadline:string|null; date:string|null; deadline_text:string|null; valid_through:string|null; career:string|null; education:string|null; employment_type:string|null; is_ad:boolean; url:string; source:string }
 export function dateTextToIso(value:string|null, now=new Date()): string|null {
  if(!value || /상시채용|채용시\s*마감|수시/.test(value)) return null
  if(/오늘마감/.test(value)) return now.toISOString().slice(0,10)
@@ -39,7 +39,16 @@ export function parseSearch(html:string): Job[] {
     const body=card?.text.replace(/\s+/g," ")??""
     const career=card?.querySelectorAll("span.text-gray700.text-typo-c1-13").map(x=>x.text.trim()).find(x=>/^(신입(?:·경력)?|경력(?:\s*\d+년↑|무관)?|인턴)$/.test(x))??body.match(/(경력무관|경력\s*\d+년↑|신입·경력|신입|경력|인턴)/)?.[1]??null
     const deadlineText=body.match(/(상시채용|채용시\s*마감|오늘마감|~?\s*\d{1,2}\/\d{1,2}(?:\([^)]*\))?)/)?.[1]?.trim()??null
-    out.push({id,title,company,location,posted_at:null,deadline:dateTextToIso(deadlineText),deadline_text:deadlineText,valid_through:null,career,education:null,employment_type:null,is_ad:/\bAD\b/.test(body),url:`${BASE_URL}/Recruit/GI_Read/${id}`,source:"jobkorea"})
+    out.push({
+      id,
+      title: title,
+      company: company,
+      location: location,
+      posted_at: null, deadline: dateTextToIso(deadlineText),
+      date: dateTextToIso(deadlineText), deadline_text: deadlineText, valid_through: null,
+      career, education: null, employment_type: null, is_ad: /\bAD\b/.test(body),
+      url: `${BASE_URL}/Recruit/GI_Read/${id}`, source: "jobkorea",
+    })
   }
   if(!out.length) throw new Error("검색 결과를 파싱하지 못했습니다"); return out
 }

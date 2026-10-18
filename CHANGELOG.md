@@ -15,6 +15,8 @@ per-file diff commands.
 
 ### Added
 
+- **한국 채용 포털 통합 가이드와 한국어 빠른 시작 추가** (`README.ko.md`, `AGENTS.md`, `.claude/skills/job-scraper/`) - 사람인·잡코리아·원티드 검색 전략, 마감일 정렬, 교차 포털 중복 병합과 한국어 직무·지역·경력 쿼리를 문서화했습니다. 공식 API 키의 환경변수 사용과 키가 없을 때의 제한, 개인 사용 경고, 사실성 원칙 및 MIT 원저작자 표기를 한국 사용자 안내에 포함했습니다.
+
 - **One cross-platform command installs every portal CLI: `python3 tools/install_portal_clis.py`**
   (#540, `README.md` quick start step 2, `SETUP.md` section 3,
   `tests/test_install_portal_clis.py`) - the README and SETUP.md each carried a PowerShell and a

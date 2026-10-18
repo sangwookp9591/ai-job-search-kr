@@ -61,6 +61,12 @@ HASH_LEN = 6
 # be surprised by the next punctuation mark a job board invents.
 _NON_SLUG = re.compile(r"[^a-z0-9]+")
 _JOB_ID = re.compile(r"(\d{6,})")
+_KR_COMPANY_MARKERS = re.compile(r"(?:주식회사|\(주\)|㈜)", re.IGNORECASE)
+
+
+def normalize_company(text: str) -> str:
+    """Remove common Korean legal-form markers before making a dedup key."""
+    return _KR_COMPANY_MARKERS.sub("", str(text or "")).strip()
 
 
 def slugify(text: str) -> str:
@@ -111,9 +117,10 @@ def _cap(slug: str, limit: int) -> str:
 
 def make_key(company: str, title: str, url: str = "") -> str:
     """The canonical seen_jobs.json key for one posting."""
-    company_slug = _cap(slugify(company), COMPANY_MAX)
-    if not company_slug or _lost_letters(company):
-        name = unicodedata.normalize("NFC", str(company or "").strip().casefold())
+    normalized_company = normalize_company(company)
+    company_slug = _cap(slugify(normalized_company), COMPANY_MAX)
+    if not company_slug or _lost_letters(normalized_company):
+        name = unicodedata.normalize("NFC", normalized_company.strip().casefold())
         # An absent name stays unknown; a non-Latin name still has an identity.
         # A mixed-script name keeps its Latin fragment as a readable prefix, but
         # the identity is the hash: "Сбер AI" and "Яндекс AI" both fold to "ai".

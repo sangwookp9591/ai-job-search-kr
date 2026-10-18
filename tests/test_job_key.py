@@ -14,7 +14,7 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "tools"))
-from job_key import is_canonical, is_legacy_shape, make_key, slugify  # noqa: E402
+from job_key import is_canonical, is_legacy_shape, make_key, slugify, normalize_company  # noqa: E402
 
 REPO = Path(__file__).resolve().parent.parent
 TOOL = REPO / "tools" / "job_key.py"
@@ -33,8 +33,16 @@ class Slugify(unittest.TestCase):
         self.assertEqual(slugify("시큐리온"), "")
         self.assertEqual(slugify("Код Безопасности"), "")
 
+    def test_korean_company_markers_are_removed(self):
+        variants = ["(주)네이버", "주식회사 네이버", "㈜네이버", "네이버(주)"]
+        self.assertEqual({normalize_company(name) for name in variants}, {"네이버"})
+
 
 class MakeKey(unittest.TestCase):
+    def test_korean_company_markers_deduplicate(self):
+        names = ["(주)Naver", "주식회사 Naver", "㈜Naver", "Naver(주)"]
+        self.assertEqual(len({make_key(name, "Backend Developer") for name in names}), 1)
+
     def test_shape(self):
         key = make_key("Acme Corp", "SOC Analyst (L2)")
         self.assertEqual(key, "acme-corp_soc-analyst-l2")

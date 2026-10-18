@@ -37,9 +37,9 @@ export const search = defineCommand({
   },
 })
 function outputTable(rows: Job[]) {
-  console.log("id       title                                      company                location")
-  for (const j of rows) console.log(`${j.id.padEnd(8)} ${j.title.slice(0, 40).padEnd(40)} ${(j.company ?? "-").slice(0, 22).padEnd(22)} ${j.location ?? "-"}`)
+  console.log("id       title                                      company                location                       date")
+  for (const j of rows) console.log(`${j.id.padEnd(8)} ${j.title.slice(0, 40).padEnd(40)} ${(j.company ?? "-").slice(0, 22).padEnd(22)} ${j.location ?? "-"} ${j.date ?? "-"}`)
 }
 function outputPlain(rows: Job[]) {
-  for (const j of rows) console.log(`id: ${j.id}\ntitle: ${j.title}\ncompany: ${j.company ?? "-"}\nlocation: ${j.location ?? "-"}\ncareer: ${j.career ?? "-"}\nurl: ${j.url}\nsource: ${j.source}\n`)
+  for (const j of rows) console.log(`id: ${j.id}\ntitle: ${j.title}\ncompany: ${j.company ?? "-"}\nlocation: ${j.location ?? "-"}\ndate: ${j.date ?? "-"}\ncareer: ${j.career ?? "-"}\nurl: ${j.url}\nsource: ${j.source}\n`)
 }

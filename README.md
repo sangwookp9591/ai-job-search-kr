@@ -4,6 +4,8 @@
 
 # AI Job Search
 
+[한국어 안내](README.ko.md) · Korean fork of MadsLorentzen/ai-job-search.
+
 *The job search that runs on your machine.*
 
 <p align="center">

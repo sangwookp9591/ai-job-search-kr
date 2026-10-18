@@ -26,7 +26,7 @@ On Windows, `py --version` is often the most reliable check. If your system expo
 
 ### Bun (for job search tools)
 
-The job portal CLIs (four Danish portals plus the country-agnostic `linkedin-search` and `freehire-search` tools) are written in TypeScript and run with Bun.
+The job portal CLIs (including Danish portals, Korean portals such as `saramin-search`, `jobkorea-search`, and `wanted-search`, and the country-agnostic `linkedin-search` and `freehire-search`) are written in TypeScript and run with Bun.
 
 - macOS/Linux:
 

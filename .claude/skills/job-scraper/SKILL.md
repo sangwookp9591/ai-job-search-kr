@@ -2,7 +2,7 @@
 name: scrape
 description: >
   Finds new job postings matching your profile via installed portal-search CLIs
-  (LinkedIn, local job boards, and any skills added with /add-portal). Deduplicates
+  (including Saramin, JobKorea, Wanted, and any skills added with /add-portal). Deduplicates
   across runs. Triggers on: job scrape, find jobs, search jobs, new jobs, job search,
   scrape jobs, /scrape
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash(bun --version), Bash(bun run .agents/skills/*/cli/src/cli.ts *), Bash(python tools/job_key.py:*), Bash(python3 tools/job_key.py:*), WebFetch, WebSearch, Agent, AskUserQuestion
@@ -15,7 +15,7 @@ allowed-tools: Read, Write, Edit, Glob, Grep, Bash(bun --version), Bash(bun run 
 ## How It Works
 
 This skill searches job portals using the **installed portal-search CLIs** in
-`.agents/skills/` (plus WebSearch as a fallback), using queries from your profile.
+`.agents/skills/` (including Korean portals when installed, plus WebSearch as a fallback), using queries from your profile.
 It deduplicates against previously seen jobs and the application tracker, and
 presents new matches with a quick fit assessment.
 
@@ -59,6 +59,8 @@ If this fails (bun not installed), skip to **1c (WebSearch fallback)** for all p
 #### 1b. Run CLI tools (primary — run these in parallel where possible)
 
 Discover all installed portal CLI skills by reading every `SKILL.md` found under `.agents/skills/*/SKILL.md`. Each file documents that portal's exact CLI flags and usage examples. **Use each portal's own documented interface — do not guess flags.** This approach automatically includes any new portals added via `/add-portal` without requiring changes to this file.
+
+For Korean results, use Korean role + location + experience terms from `search-queries.md`. Search Saramin, JobKorea, and Wanted independently at low volume. Prefer each CLI's official API mode when its environment credentials are configured; otherwise respect its public-page/API restrictions and personal-use warning. After collection, sort known deadlines ascending before considering posting recency; keep undated or ongoing listings after dated deadlines (portal CLI `--sort` values do not necessarily sort by deadline). Normalize Korean company legal markers `(주)`, `주식회사`, and `㈜` through `tools/job_key.py` when merging cross-portal duplicates, retain one canonical posting, and note the source portals/URLs.
 
 **Honor the `enabled` toggle.** A portal is enabled unless its `SKILL.md` frontmatter sets `enabled: false` (a missing key means enabled — the default). Skip each disabled portal and record it for the Step 5 summary. A fork can thus keep a portal installed but sit out a run without deleting its directory.
 

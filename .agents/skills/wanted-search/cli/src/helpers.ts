@@ -35,6 +35,7 @@ export interface Job {
   location: string | null
   posted_at: string | null
   deadline: string | null
+  date: string | null
   career: string | null
   education: string | null
   employment_type: string | null
@@ -70,6 +71,7 @@ export function normalizeSearch(data: any, source: Job["source"]): Job[] {
       location: loc,
       posted_at: job.created_at ?? job.posted_at ?? null,
       deadline: deadline ? (String(deadline).slice(0, 10)) : null,
+      date: job.created_at ?? job.posted_at ? String(job.created_at ?? job.posted_at).slice(0, 10) : deadline ? String(deadline).slice(0, 10) : null,
       career,
       education: job.education ?? null,
       employment_type: job.employment_type ?? null,

@@ -4,11 +4,21 @@
 
 ## Installed portal CLIs (primary for `/scrape`)
 
-`/scrape` discovers every portal skill under `.agents/skills/*/SKILL.md` and runs its CLI first. Shipped country-agnostic CLIs include `linkedin-search` and `freehire-search`; Danish demos and any skill you add with `/add-portal` are included the same way. You do **not** need a matching `site:` line below for those CLIs to run.
+`/scrape` discovers every portal skill under `.agents/skills/*/SKILL.md` and runs its CLI first. The Korean market CLIs are `saramin-search`, `jobkorea-search`, and `wanted-search`; Danish demos, country-agnostic CLIs, and any skill added with `/add-portal` are included the same way. You do **not** need a matching `site:` line below for those CLIs to run.
 
 The `site:` query templates in this file are the **WebSearch fallback** — for portals without a CLI, company career pages, or when a CLI fails.
 
 **Language scope:** write every query category in every language listed in your CLAUDE.md Languages table (typically 1-2, sometimes more). A posting requiring a language you have *not* declared, as a job condition, is excluded before scoring; a posting requiring a *higher level* than you declared in a language you *do* work in is flagged for your own judgment, not excluded — see `04-job-evaluation.md`'s Language Gate, the single source of truth for this rule. Translate each category's keywords rather than machine-translating word-for-word (e.g. "Frontend Developer" -> "Desarrollador Frontend", not a literal word-for-word translation) if you work in more than one language.
+
+**Korean portal strategy:** search each Korean portal with a Korean role + location + experience query (for example `백엔드 개발자 서울 경력 3년`, `데이터 엔지니어 판교 신입`). Use each CLI's documented flags and prefer its official API when configured. Keep the request volume low, never use login-only paths, and obey each portal skill's personal-use warning. Compare `deadline` first, then `posted_at`; put jobs with a known upcoming deadline first and unknown/permanent deadlines after dated ones. Preserve `deadline_text` when no fixed date exists. Merge cross-portal duplicates using `python3 tools/job_key.py --company "<company>" --title "<title>" --url "<url>"`; company normalization removes `(주)`, `주식회사`, and `㈜` so legal-form variants share a key. Keep one row and record all source portals/URLs in its notes.
+
+Example Korean CLI queries:
+
+```text
+사람인: search -q "백엔드 개발자 서울 경력 3년" --limit 5
+잡코리아: search -q "데이터 엔지니어 판교 신입" --limit 5
+원티드: search -q "프론트엔드 개발자 서울 경력" --limit 5
+```
 
 ## Search Sites
 
