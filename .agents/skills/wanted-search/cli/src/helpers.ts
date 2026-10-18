@@ -9,6 +9,16 @@ export function hasOpenApiCredentials(): boolean {
   return Boolean(process.env.WANTED_CLIENT_ID && process.env.WANTED_CLIENT_SECRET)
 }
 
+export function useOfficialApi(allowUnofficial: boolean): boolean {
+  if (hasOpenApiCredentials()) return true
+  if (process.env.WANTED_ALLOW_UNOFFICIAL === "1" || allowUnofficial || process.argv.includes("--unofficial")) return false
+  writeError(
+    "원티드 공식 OpenAPI 키(WANTED_CLIENT_ID, WANTED_CLIENT_SECRET)를 설정하세요. 비공식 웹 JSON은 --unofficial 또는 WANTED_ALLOW_UNOFFICIAL=1로 명시적으로 허용할 수 있으며, 개인 사용 전용이고 robots.txt 정책은 확인되지 않았습니다. 대안으로 공고 URL이나 본문을 /apply-kr에 직접 붙여넣으세요.",
+    "AUTH_REQUIRED",
+  )
+  process.exit(1)
+}
+
 export async function apiFetch<T>(url: string, headers: Record<string, string> = {}): Promise<T> {
   let delay = 500
   for (let attempt = 0; attempt <= 6; attempt++) {

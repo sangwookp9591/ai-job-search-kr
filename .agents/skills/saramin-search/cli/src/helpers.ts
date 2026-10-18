@@ -33,6 +33,16 @@ export function parseApi(data: any): Job[] {
     }
   })
 }
+export function filterJobsByCareer(jobs: Job[], career?: string): Job[] {
+  if (!career || !/^\s*신입\s*$/.test(career)) return jobs
+  // Saramin search cards can include paid placements outside the selected filter.
+  // Keep only entry-level, mixed entry-level/career, and career-agnostic cards.
+  return jobs.filter(job => /^(?:신입|신입\s*[·/]\s*경력|경력무관)$/.test((job.career ?? "").replace(/\s+/g, " ").trim()))
+}
+export function applyWebCareerFilter(params: URLSearchParams, career?: string): void {
+  if (/^\s*신입\s*$/.test(career ?? "")) { params.set("exp_cd", "1"); params.set("exp_none", "y") }
+  else if (career) params.set("career", career)
+}
 export function deadlineFields(raw: string | null | undefined, now = new Date()): { deadline: string | null; deadline_text: string | null } {
   const text = raw?.trim() ?? null
   if (!text || /상시채용|채용시(?:\s*마감)?|수시/.test(text)) return { deadline: null, deadline_text: text }
@@ -114,9 +124,11 @@ export function parseDetail(html: string, id: string, url: string, source: Job["
 }
 export async function loadSearch(query: string, page: number, count: number, filters: { location?: string; career?: string; sort?: string }) {
   const key = process.env.SARAMIN_ACCESS_KEY
-  if (key) { const params = new URLSearchParams({ "access-key": key, keywords: query, start: String(page - 1), count: String(count), sort: filters.sort ?? "pd", fields: "posting-date expiration-date" }); if (filters.location) params.set("loc_cd", filters.location); if (filters.career) params.set("experience-level", filters.career); return parseApi(JSON.parse(await fetchText(`${API_URL}?${params}`, "application/json"))) }
-  const params = new URLSearchParams({ searchword: query, page: String(page) }); if (filters.location) params.set("loc", filters.location); if (filters.career) params.set("career", filters.career); if (filters.sort) params.set("sort", filters.sort)
-  return parseWeb(await fetchText(`${WEB_URL}/zf_user/search/recruit?${params}`)).slice(0, count)
+  if (key) { const params = new URLSearchParams({ "access-key": key, keywords: query, start: String(page - 1), count: String(count), sort: filters.sort ?? "pd", fields: "posting-date expiration-date" }); if (filters.location) params.set("loc_cd", filters.location); if (filters.career) params.set("experience-level", filters.career); return filterJobsByCareer(parseApi(JSON.parse(await fetchText(`${API_URL}?${params}`, "application/json"))), filters.career).slice(0, count) }
+  const params = new URLSearchParams({ searchword: query, page: String(page) }); if (filters.location) params.set("loc", filters.location)
+  applyWebCareerFilter(params, filters.career)
+  if (filters.sort) params.set("sort", filters.sort)
+  return filterJobsByCareer(parseWeb(await fetchText(`${WEB_URL}/zf_user/search/recruit?${params}`)), filters.career).slice(0, count)
 }
 export async function loadDetail(id: string) {
   const key = process.env.SARAMIN_ACCESS_KEY

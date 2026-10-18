@@ -1,6 +1,6 @@
 import { defineCommand, option } from "@bunli/core"
 import { z } from "zod"
-import { apiFetch, hasOpenApiCredentials, OPENAPI_BASE, WEB_BASE, normalizeSearch, writeError, type Job } from "../helpers.js"
+import { apiFetch, useOfficialApi, OPENAPI_BASE, WEB_BASE, normalizeSearch, writeError, type Job } from "../helpers.js"
 
 export const search = defineCommand({
   name: "search", description: "원티드 채용공고 검색",
@@ -11,11 +11,12 @@ export const search = defineCommand({
     location: option(z.string().optional(), { description: "지역명" }),
     career: option(z.string().optional(), { description: "경력: 신입 또는 경력" }),
     sort: option(z.string().optional(), { description: "정렬 옵션" }),
+    unofficial: option(z.boolean().default(false), { description: "비공식 웹 JSON 사용을 허용 (개인 사용 전용, robots 정책 미확인)" }),
     format: option(z.enum(["json", "table", "plain"]).default("json"), { description: "출력 형식" }),
   },
   handler: async ({ flags }) => {
     if (!flags.query?.trim()) { writeError("--query is required", "MISSING_REQUIRED"); process.exit(1) }
-    const official = hasOpenApiCredentials()
+    const official = useOfficialApi(flags.unofficial)
     if (!official) process.stderr.write("⚠️ 정책 미확인 비공식 엔드포인트: 개인 사용 전용입니다.\n")
     const offset = (flags.page - 1) * flags.limit
     const url = official

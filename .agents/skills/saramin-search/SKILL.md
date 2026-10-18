@@ -27,6 +27,8 @@ bun run .agents/skills/saramin-search/cli/src/cli.ts detail 27614114 --format pl
 
 `search`는 `--query/-q` 필수이며 `--page`, `--limit`(1~110), `--location/-l`(사람인 지역 코드), `--career`, `--sort`, `--format json|table|plain`을 받습니다. 검색 카드의 마감일은 Asia/Seoul 날짜 기준으로 연도를 추론하며, 오늘보다 앞선 월/일은 다음 해로 처리합니다. 오늘마감/내일마감은 서울 날짜를 기준으로 ISO 날짜로 바꿉니다. 상시채용·채용시는 `deadline: null`과 원문 `deadline_text`를 출력합니다. `detail`은 공고 ID 또는 `rec_idx` URL을 받고, relay 요약 페이지 및 `relay/view-detail` 본문 페이지를 읽습니다. 제목 기반 검색으로 상세의 지역·경력·학력·고용형태를 보충합니다. 본문이 이미지뿐이면 `image_only: true`를 표시합니다. JSON 결과는 `meta.source`와 각 공고의 `source`를 `saramin-api` 또는 `saramin-web`으로 표시합니다.
 
+`--career 신입`은 공개 검색에 사람인 경력 코드 `exp_cd=1`(신입)과 `exp_none=y`(경력무관)를 전달합니다. 공개 검색 결과는 다시 `career` 필드로 걸러 `신입`, `신입·경력`(또는 `신입/경력`), `경력무관`만 남깁니다. 이 후처리는 유료 광고 카드에도 적용됩니다. 따라서 검색 한 번은 검색 페이지 요청 1회이며, 상세 한 번은 요약 endpoint와 본문 endpoint를 병렬로 각각 호출합니다(총 2회). 키 없는 상세는 추가로 검색 endpoint를 호출해 상세 메타데이터를 보강할 수 있어 최대 3회입니다. 키가 있으면 요약·본문 요청 뒤 공식 API 요청 1회가 추가됩니다.
+
 ## 데이터 출처
 
 `SARAMIN_ACCESS_KEY`가 있으면 공식 API를 우선 사용합니다. 키는 환경변수로만 전달하고 저장소에 기록하지 마세요. 키가 없으면 robots.txt에서 허용을 확인한 공개 검색 페이지와 relay 상세 페이지를 조회합니다. 로그인 페이지나 robots.txt에서 금지된 경로는 사용하지 않습니다. 응답은 stderr JSON 오류와 종료 코드 1로 보고합니다.

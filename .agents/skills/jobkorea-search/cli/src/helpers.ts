@@ -2,6 +2,14 @@ import { parse } from "node-html-parser"
 export const BASE_URL = "https://www.jobkorea.co.kr"
 export function writeError(error: string, code: string): void { process.stderr.write(JSON.stringify({ error, code }) + "\n") }
 export function enrichmentEnabled(args:string[], optionValue:boolean):boolean { return optionValue&&!args.some(value=>value==="--no-enrich"||value.startsWith("--no-enrich=")) }
+export function careerMatches(career:string|null, requested:string|undefined):boolean {
+ if(!requested) return true
+ const value=requested.trim()
+ if(value==="신입") return /^(신입|신입\s*[·/]\s*경력|경력무관)$/.test(career?.replace(/\s+/g," ")??"")
+ if(value==="경력") return /^(경력(?:\s*\d+년↑)?|신입\s*[·/]\s*경력)$/.test(career?.replace(/\s+/g," ")??"")
+ if(value==="무관") return /^(경력무관|무관)$/.test(career?.replace(/\s+/g," ")??"")
+ return true
+}
 export async function htmlFetch(url: string): Promise<string> {
   let delay = 500
   for (let attempt = 0; attempt <= 4; attempt++) {
@@ -55,10 +63,10 @@ export function parseSearch(html:string): Job[] {
 export function parseDetail(html:string,id:string,_url:string) {
  const root=parse(html); const title=root.querySelector('script[type="application/ld+json"]')?.text.match(/"title"\s*:\s*"([^"]+)"/)?.[1]??root.querySelector('meta[property="og:title"]')?.getAttribute("content")?.split(" | ")[0] ?? root.querySelector("h1")?.text.trim() ?? ""
  if(!title) throw new Error("공고 제목을 찾지 못했습니다")
- const description=root.querySelector('meta[name="description"]')?.getAttribute("content")??root.querySelector('meta[property="og:description"]')?.getAttribute("content")??""
- const imageOnly=!root.querySelector("img") && !root.querySelector("[data-sentry-component*=Description]") && description.length<30
+ const summaryDescription=root.querySelector('meta[name="description"]')?.getAttribute("content")??root.querySelector('meta[property="og:description"]')?.getAttribute("content")??""
+ const imageOnly=!root.querySelector("img") && !root.querySelector("[data-sentry-component*=Description]") && summaryDescription.length<30
  const body=root.text.replace(/\s+/g," ").trim()
- const sourceText=description||body
+ const sourceText=summaryDescription||body
  const field=(label:string)=>sourceText.match(new RegExp(`${label}\\s*[:：]\\s*([^,|]+)`))?.[1]?.trim()??null
  const deadlineRaw=field("마감일")??sourceText.match(/(상시채용|채용시\s*마감|오늘마감|~?\s*\d{1,2}\/\d{1,2}(?:\([^)]*\))?)/)?.[1]?.trim()??null
  const deadlineText=deadlineRaw?.match(/상시채용|채용시\s*마감|오늘마감|~?\s*\d{1,2}\/\d{1,2}(?:\([^)]*\))?|\d{4}[.\-/]\d{1,2}[.\-/]\d{1,2}/)?.[0]??deadlineRaw
@@ -72,5 +80,18 @@ export function parseDetail(html:string,id:string,_url:string) {
  const employmentType=field("고용형태")??(posting?.employmentType==="FULL_TIME"?"정규직":posting?.employmentType??null)
  const career=field("경력")??posting?.experienceRequirements??null
  const education=field("학력")??posting?.educationRequirements??null
- return {id,title,company:root.querySelector('meta[name="writer"]')?.getAttribute("content")??null,location,posted_at:postedAt,deadline:indefiniteDeadline?null:(dateTextToIso(deadlineText)??validThrough),deadline_text:deadlineText??validThrough,valid_through:validThrough,career,education,employment_type:employmentType,apply_method:/즉시지원/.test(body)?"잡코리아 즉시지원":/홈페이지 지원/.test(body)?"홈페이지 지원":null,url:`${BASE_URL}/Recruit/GI_Read/${id}`,source:"jobkorea",description:imageOnly?null:body.slice(0,12000),image_only:imageOnly }
+ let description:string|null=null, description_reason:string|null=null
+ const structuredBody=posting?.description
+ const section=root.querySelector('[data-sentry-component="RecruitmentGuidelines"]')
+ const clean=(value:string)=>parse(value).textContent.replace(/\s+/g," ").trim()
+ if(typeof structuredBody==="string" && clean(structuredBody).length>=20) description=clean(structuredBody)
+ else if(section) {
+   for(const node of section.querySelectorAll("script,style,noscript")) node.remove()
+   const htmlText=section.innerHTML.replace(/<\/(?:p|div|li|tr|h[1-6])\s*>/gi,"\n").replace(/<br\s*\/?>/gi,"\n")
+   const text=parse(htmlText).textContent.replace(/[\t ]*\n[\t ]*/g,"\n").replace(/[\t ]+/g," ").replace(/\n{3,}/g,"\n\n").trim()
+   if(text.length>=20) description=text
+ }
+ if(imageOnly) { description=null; description_reason="공개 페이지에서 텍스트 본문을 찾지 못했습니다" }
+ else if(!description) description_reason="모집요강 본문 또는 구조화 본문 필드를 찾지 못했습니다"
+ return {id,title,company:root.querySelector('meta[name="writer"]')?.getAttribute("content")??null,location,posted_at:postedAt,deadline:indefiniteDeadline?null:(dateTextToIso(deadlineText)??validThrough),deadline_text:deadlineText??validThrough,valid_through:validThrough,career,education,employment_type:employmentType,apply_method:/즉시지원/.test(body)?"잡코리아 즉시지원":/홈페이지 지원/.test(body)?"홈페이지 지원":null,url:`${BASE_URL}/Recruit/GI_Read/${id}`,source:"jobkorea",description,image_only:imageOnly,description_reason }
 }

@@ -1,6 +1,6 @@
 import { defineCommand, option } from "@bunli/core"
 import { z } from "zod"
-import { apiFetch, hasOpenApiCredentials, OPENAPI_BASE, WEB_BASE, normalizeDetail, writeError, type Job } from "../helpers.js"
+import { apiFetch, useOfficialApi, OPENAPI_BASE, WEB_BASE, normalizeDetail, writeError, type Job } from "../helpers.js"
 
 export function parseJobId(value: string): string | null {
   const text = value.trim()
@@ -14,13 +14,16 @@ export function parseJobId(value: string): string | null {
 
 export const detail = defineCommand({
   name: "detail", description: "원티드 채용공고 상세 조회",
-  options: { format: option(z.enum(["json", "plain"]).default("json"), { description: "출력 형식" }) },
+  options: {
+    format: option(z.enum(["json", "plain"]).default("json"), { description: "출력 형식" }),
+    unofficial: option(z.boolean().default(false), { description: "비공식 웹 JSON 사용을 허용 (개인 사용 전용, robots 정책 미확인)" }),
+  },
   handler: async ({ positional, flags }) => {
     const input = positional[0]
     if (!input) { writeError("Job ID or URL is required", "MISSING_REQUIRED"); process.exit(1) }
     const id = parseJobId(input)
     if (!id) { writeError("Provide a Wanted job ID or wanted.co.kr/wd/<id> URL", "INVALID_JOB_ID"); process.exit(1) }
-    const official = hasOpenApiCredentials()
+    const official = useOfficialApi(flags.unofficial)
     if (!official) process.stderr.write("⚠️ 정책 미확인 비공식 엔드포인트: 개인 사용 전용입니다.\n")
     const url = official ? `${OPENAPI_BASE}/jobs/${encodeURIComponent(id)}` : `${WEB_BASE}/api/v4/jobs/${encodeURIComponent(id)}`
     const headers: Record<string, string> = official ? { "wanted-client-id": process.env.WANTED_CLIENT_ID!, "wanted-client-secret": process.env.WANTED_CLIENT_SECRET! } : {}
