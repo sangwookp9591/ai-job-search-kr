@@ -89,7 +89,7 @@ export function parseDetail(html:string,id:string,_url:string,bodyHtml="") {
  const iframe=parse(bodyHtml)
  for(const node of iframe.querySelectorAll("script,style,noscript,.devChargeEmail")) node.remove()
  const iframeHtml=iframe.innerHTML.replace(/<!doctype[^>]*>/gi,"").replace(/<\/(?:p|div|li|tr|h[1-6]|section|table|ul|ol)\s*>/gi,"\n").replace(/<br\s*\/?>/gi,"\n")
- let bodyText=parse(iframeHtml).textContent.replace(/\r\n?/g,"\n").replace(/\u00a0/g," ").replace(/[\t ]*\n[\t ]*/g,"\n").replace(/[\t ]+/g," ").split("\n").map(line=>line.trim()).join("\n").replace(/\n{3,}/g,"\n\n").trim()
+ let bodyText=parse(iframeHtml).textContent.replace(/\r\n?/g,"\n").replace(/[\t ]*\n[\t ]*/g,"\n").replace(/[\t ]+/g," ").split("\n").map(line=>line.trim()).join("\n").replace(/\n{3,}/g,"\n\n").trim()
  bodyText=bodyText.replace(/입사\s*지원하기/g,"").replace(/[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}/g,"").replace(/\n{3,}/g,"\n\n").trim()
  const imageUrls=[...new Set(iframe.querySelectorAll("img").map(img=>img.getAttribute("src")??img.getAttribute("data-src")).filter((src):src is string=>Boolean(src&&/^(?:https?:)?\/\//i.test(src))).map(src=>src.startsWith("//")?`https:${src}`:src))]
  const hasTextBody=bodyText.length>=100

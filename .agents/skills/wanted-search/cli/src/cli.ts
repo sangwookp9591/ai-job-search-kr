@@ -5,6 +5,15 @@ import { detail } from "./commands/detail.js"
 const cli = await createCLI({ name: "wanted-cli", version: "1.0.0", description: "원티드 채용공고 검색" })
 const commands = [search, detail]
 for (const command of commands) cli.command(command)
+const kebabToCamel = (name: string) => name.replace(/-([a-z])/g, (_, letter: string) => letter.toUpperCase())
+const normalizeFlags = (argv: string[]) => { let stopped = false; return argv.map((token) => {
+  if (token === "--") { stopped = true; return token }
+  if (stopped || !token.startsWith("--")) return token
+  const [name, ...value] = token.slice(2).split("=")
+  if (name.startsWith("no-")) return `--${kebabToCamel(name.slice(3))}=false`
+  return `--${kebabToCamel(name)}${value.length ? `=${value.join("=")}` : ""}`
+}) }
+process.argv = [...process.argv.slice(0, 2), ...normalizeFlags(process.argv.slice(2))]
 const argv = process.argv.slice(2)
 const invoked = commands.find((c) => (c as { name?: string }).name === argv[0])
 if (invoked) {

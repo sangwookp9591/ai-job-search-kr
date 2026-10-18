@@ -42,3 +42,5 @@ WANTED_ALLOW_UNOFFICIAL=1 bun run .agents/skills/wanted-search/cli/src/cli.ts de
 ## 출처 / 제한
 
 OpenAPI 인증 및 endpoint 개요는 [url-reference.md](url-reference.md)를 확인하세요. 키가 없는 현재 환경에서 공식 OpenAPI 경로는 **미검증(키 없음)** 상태입니다. 공개 API의 정책 또한 robots.txt 차단으로 **미확인**입니다.
+
+`detail <id|url> --save <dir>`는 상세 JSON과 설명 섹션을 `<dir>/job_posting.json`, `<dir>/job_posting.md`에 저장합니다. 기존 파일은 기본적으로 보호하며 덮어쓰려면 `--force`를 지정합니다. `--save-under BASE`는 회사_직무 폴더를 만들어 저장하며, 같은 공고 ID면 재사용하고 다른 ID면 폴더명 끝에 ID를 붙입니다. JSON meta에는 `saved_dir`가 포함되고 재사용 시 `reused: true`가 포함됩니다.

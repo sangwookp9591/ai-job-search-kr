@@ -43,3 +43,5 @@ bun run .agents/skills/saramin-search/cli/src/cli.ts detail 27614114 --format pl
 ## 데이터 출처
 
 `SARAMIN_ACCESS_KEY`가 있으면 공식 API를 우선 사용합니다. 키는 환경변수로만 전달하고 저장소에 기록하지 마세요. 키가 없으면 robots.txt에서 허용을 확인한 공개 검색 페이지와 relay 상세 페이지를 조회합니다. 로그인 페이지나 robots.txt에서 금지된 경로는 사용하지 않습니다. 응답은 stderr JSON 오류와 종료 코드 1로 보고합니다.
+
+`detail <id> --save <dir>`는 상세 JSON과 본문을 `<dir>/job_posting.json`, `<dir>/job_posting.md`에 저장합니다. 기존 파일은 기본적으로 보호하며 덮어쓰려면 `--force`를 지정합니다. `--save-under BASE`는 회사_직무 폴더를 만들어 저장하며, 같은 공고 ID면 재사용하고 다른 ID면 폴더명 끝에 ID를 붙입니다. JSON meta에는 `saved_dir`가 포함되고 재사용 시 `reused: true`가 포함됩니다.

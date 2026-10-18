@@ -122,7 +122,8 @@ export function parseDetail(html: string, id: string, url: string, source: Job["
   const field = (label: string) => metaDescription.match(new RegExp(`${label}\\s*:\\s*(.*?)(?=,\\s*(?:경력|학력|근무지역|고용형태|마감일)\\s*:|$)`, "i"))?.[1]?.trim() ?? null
   const detailField = (id: string) => root.querySelector(`#${id}`)?.text.replace(/\s+/g, " ").trim() ?? null
   const content = root.querySelector(".user_content")
-  const imageOnly = Boolean(content && content.querySelectorAll("img").length && content.text.trim().length < 40)
+  const imageUrls = content?.querySelectorAll("img").map(image => image.getAttribute("src") ?? image.getAttribute("data-src")).filter((url): url is string => Boolean(url)) ?? []
+  const imageOnly = Boolean(content && imageUrls.length && content.text.trim().length < 40)
   const description = content ? parse(content.innerHTML
     .replace(/<br\s*\/?>/gi, "\n")
     .replace(/<\/(?:p|div|li|tr|h[1-6])>/gi, "\n")
@@ -134,7 +135,7 @@ export function parseDetail(html: string, id: string, url: string, source: Job["
   const employmentType = field("고용형태") ?? detailField("template_job_type_job_type") ?? root.querySelector("#template_job_type .value")?.text.trim() ?? root.querySelector("#template_job_type")?.text.replace(/.*고용형태\s*[:：]\s*/, "").trim() ?? null
   const address = detailField("template_job_type_aw_post_address") ?? root.querySelector("#template_address .value")?.text.trim() ?? root.querySelector("#template_address")?.text.replace(/.*근무지\s*[:：]\s*/, "").trim() ?? null
   const location = field("근무지역") ?? address?.match(/(?:\(\d{5}\)\s*)?((?:서울|부산|대구|인천|광주|대전|울산|세종|경기|강원|충북|충남|전북|전남|경북|경남|제주)[^,\n]*)/)?.[1]?.trim() ?? null
-  return { id, title: title.replace(/\s*-\s*사람인$/, ""), company: metaDescription.split(",")[0]?.trim() || title.match(/^\[([^\]]+)\]/)?.[1] || null, location, posted_at: null, ...deadline, date: deadline.deadline, career, education, employment_type: employmentType?.replace(/\s+/g, " ").trim() ?? null, is_ad: false, url, source, description: description || null, image_only: imageOnly }
+  return { id, title: title.replace(/\s*-\s*사람인$/, ""), company: metaDescription.split(",")[0]?.trim() || title.match(/^\[([^\]]+)\]/)?.[1] || null, location, posted_at: null, ...deadline, date: deadline.deadline, career, education, employment_type: employmentType?.replace(/\s+/g, " ").trim() ?? null, is_ad: false, url, source, description: description || null, image_only: imageOnly, image_urls: imageUrls }
 }
 export async function loadSearch(query: string, page: number, count: number, filters: { location?: string; career?: string; sort?: string }) {
   const key = process.env.SARAMIN_ACCESS_KEY
