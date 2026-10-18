@@ -12,6 +12,11 @@ framework_version: 1.3.4
 
 ---
 
+## Market routing (read first)
+
+- **Korean posting** (Korean-language posting, a JobKorea / Saramin / Wanted URL, or Korean application questions with character limits): read `10-korean-applications.md` and run `/apply-kr`. It produces Markdown text deliverables (공고분석, 자기소개서, 경력기술서 or 프로젝트경험) under `documents/applications/<company>_<role>/`, with no PDF or LaTeX. Follow the Korean branches in `03-writing-style.md`, `04-job-evaluation.md` and `08-application-forms.md`. A Korean posting gets Korean deliverables.
+- **Everything else** (English, Danish and other markets): the workflow below, unchanged.
+
 ## Workflow
 
 When the user provides a job posting (URL or text), follow this workflow:
@@ -64,6 +69,7 @@ When the user provides a job posting (URL or text), follow this workflow:
 | `06-cover-letter-templates.md` | LaTeX cover letter structure and tailoring rules |
 | `07-interview-prep.md` | STAR examples, tough questions, roleplay guidelines |
 | `08-application-forms.md` | Portal free-text fields: self-introduction, project entries, character-limited pitches |
+| `10-korean-applications.md` | Korean market: 신입 공채 vs 경력 수시, 자기소개서 question types, 경력기술서 structure, submission-format principle, personal-data caution. Used by `/apply-kr` |
 | `09-web-research.md` | Fetching postings and company pages: trust boundary, the WebFetch 403 fallback, escalation order, claim verification |
 
 ---
@@ -75,4 +81,5 @@ The user may also ask for individual steps without the full workflow:
 - "Write a CV for [company]" - Step 2 only
 - "Write a cover letter for [role] at [company]" - Step 3 only
 - "Help me prepare for an interview at [company]" - Step 4 only
+- "이 공고 지원서 써줘" / a Korean posting - `/apply-kr` (see Market routing)
 - "What jobs should I look for?" - Career strategy discussion using profile + evaluation framework

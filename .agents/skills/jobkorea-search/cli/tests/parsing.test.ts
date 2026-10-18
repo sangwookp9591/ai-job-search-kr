@@ -1,0 +1,12 @@
+import { expect, test } from "bun:test"
+import { readFileSync } from "node:fs"
+import { dateTextToIso, enrichmentEnabled, parseDetail, parseSearch } from "../src/helpers.js"
+const fixture=(name:string)=>readFileSync(`${import.meta.dir}/fixtures/${name}`,"utf8")
+test("search extracts location career and normalized clean URLs",()=>{const rows=parseSearch(fixture("search.html"));expect(rows[0]?.id).toBe("12345678");expect(rows[0]?.title).toContain("백엔드");expect(rows[0]?.location).toBe("서울 강남구");expect(rows[0]?.career).toBe("경력 3년↑");expect(rows[0]?.deadline).toBe(dateTextToIso("10/31(금)"));expect(rows[0]?.url).toBe("https://www.jobkorea.co.kr/Recruit/GI_Read/12345678");expect(rows[0]?.is_ad).toBe(false)})
+test("search preserves always-open deadline text and ad marker",()=>{const row=parseSearch(fixture("search.html"))[1]!;expect(row.deadline).toBeNull();expect(row.deadline_text).toBe("상시채용");expect(row.is_ad).toBe(true)})
+test("date year rolls forward when month/day already passed",()=>{expect(dateTextToIso("10/31(금)",new Date("2026-11-01T00:00:00"))).toBe("2027-10-31");expect(dateTextToIso("채용시 마감")).toBeNull()})
+test("detail exposes fields and apply method",()=>{const d=parseDetail(fixture("detail.html"),"12345678","https://www.jobkorea.co.kr/Recruit/GI_Read/12345678?x=1");expect(d.company).toBe("테스트 회사");expect(d.title).toBe("백엔드 개발자");expect(d.description).toContain("모집 요강");expect(d.apply_method).toBe("홈페이지 지원");expect(d.deadline).toBe("2026-12-31");expect(d.posted_at).toBe("2026-12-01");expect(d.career).toContain("3년");expect(d.education).toBe("학력무관");expect(d.employment_type).toBe("정규직");expect(d.location).toBe("서울 강남구");expect(d.url).toBe("https://www.jobkorea.co.kr/Recruit/GI_Read/12345678")})
+test("explicit indefinite deadline wins over JSON-LD validThrough",()=>{const html=fixture("detail.html").replace("마감일 : 2026.12.31","마감일 : 상시채용");const d=parseDetail(html,"12345678","https://www.jobkorea.co.kr/Recruit/GI_Read/12345678");expect(d.deadline).toBeNull();expect(d.deadline_text).toBe("상시채용");expect(d.valid_through).toBe("2026-12-31")})
+test("수시 deadline stays text-only",()=>{const html=fixture("detail.html").replace("마감일 : 2026.12.31","마감일 : 수시");const d=parseDetail(html,"12345678","https://www.jobkorea.co.kr/Recruit/GI_Read/12345678");expect(d.deadline).toBeNull();expect(d.deadline_text).toBe("수시")})
+
+test("no-enrich disables detail request enrichment",()=>{expect(enrichmentEnabled(["search","-q","backend","--no-enrich"],true)).toBe(false);expect(enrichmentEnabled(["search","-q","backend"],true)).toBe(true)})

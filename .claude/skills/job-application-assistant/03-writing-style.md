@@ -108,3 +108,14 @@ The cover letter is **not a CV repetition**. It should be forward-looking:
 - Default to the language of the job posting
 - Cover letters in the posting's language should feel natural, not translated
 - Slightly warmer, more personal tone may be acceptable in some languages
+
+## 한국어 지원서 (한국 공고)
+
+한국어 공고에 대한 산출물에는 위의 영문 규칙 중 사실성 규칙(5, 6번)은 그대로 적용하고, 문체 규칙은 아래로 바꾼다. 상세는 `10-korean-applications.md`.
+
+- 한국어로 쓴다. 번역투와 AI 말투(같은 어미 반복, "이를 통해 ~할 수 있었습니다" 남발, 모든 문단이 같은 길이)를 피한다. 존댓말 평서문이 기본이고, 사용자가 말투 예시를 주면 따른다.
+- em-dash 금지, 상투어 금지 규칙은 한국어에도 적용된다. 한국어 상투어: "열정", "도전정신", "최선을 다하는", "귀사의 비전에 공감" 등은 근거 행동 없이 쓰지 않는다.
+- 문항이 묻는 것에 첫 두 문장 안에서 답한다. 자기소개서는 커버레터와 달리 문항별 독립 답안이다.
+- STAR 틀을 채우기보다 행동과 검증(무엇을 했고 어떻게 확인했는지)에 분량을 쓴다.
+- 팀 성과와 개인 기여를 구분하고, 수치에는 측정 환경을 함께 쓴다.
+- 한국어 문서에는 "interview backtrack test"도 적용한다: 면접에서 "사실은 ~였다"고 정정해야 할 문장은 쓰지 않는다.

@@ -339,6 +339,7 @@ Ask about:
 - **Target companies (optional):** "Are there specific companies you'd like to monitor for openings?"
 - **Geographic scope:** "Which cities or regions should I search in? How far are you willing to commute?" Use this to define the location filter tiers (ideal, acceptable, borderline, too far).
 - **Job portals:** "The framework ships country-agnostic search CLIs (`linkedin-search`, `freehire-search`, enabled by default) plus Danish portal demos (Jobindex, Jobbank, Jobdanmark, Jobnet) that ship **disabled**. `/scrape` auto-discovers whatever portal skills are installed under `.agents/skills/` and skips any with `enabled: false`. Which portals fit your market?" **Then act on the answer:** if the user's market is Denmark (or they ask for the Danish boards), edit each of the four Danish `SKILL.md` files and set `enabled: true` in the frontmatter; otherwise leave them disabled and say so - they cost nothing while disabled and can be enabled later by flipping the flag. If the user needs a local board that is not shipped, guide them to `/add-portal` (market-specific skills live in their fork). WebSearch/`site:` queries remain the fallback for portals without a CLI skill.
+- **Korean market:** if the user's market is South Korea, also run the **Korean Market Branch** section below (portal activation, 한국어 CV language default, 신입/경력 questions, privacy minimisation).
 - **CV language:** "Should your CVs be written in English (the default, accepted in most markets), or in your market's language?" Record the answer as a `CV language: <language>` line in CLAUDE.md's Identity section. Cover letters always match each posting's language automatically; this setting governs the CV only. If the user is unsure, keep English and note they can re-run `/setup --section search` to change it.
 
 **Important:** Also suggest role types the user may not have considered, based on their skill profile. For example:
@@ -347,6 +348,24 @@ Ask about:
 - If they have project management experience alongside technical skills: "Would you also want to search for 'Technical Project Manager' or 'Team Lead' roles?"
 
 This proactive suggestion step helps users discover career paths they might not have considered.
+
+---
+
+## Korean Market Branch (대한민국)
+
+Path C의 Section 9(Job portals)에서 사용자의 시장이 **대한민국**이거나 한국 공고에 지원하겠다고 하면 이 분기를 적용한다. 기존 덴마크·영문 흐름은 바꾸지 않는다. 한국 시장이 아니면 이 섹션 전체를 건너뛴다. Path A·B에서도 후속 질문 단계에서 시장이 한국으로 확인되면 같은 질문을 한다.
+
+1. **포털 스킬 활성화.** `.agents/skills/jobkorea-search`, `saramin-search`, `wanted-search`의 `SKILL.md`에서 사용자가 쓰겠다고 한 포털만 `enabled: true`로 둔다(이미 `true`면 그대로). 쓰지 않겠다는 포털은 `enabled: false`로 바꾼다. 각 포털 SKILL.md의 "⚠️ 개인 사용 전용" 경고를 사용자에게 한 번 알린다. 덴마크 포털은 비활성 상태로 둔다.
+2. **CV 언어 기본값은 한국어.** "한국 지원서는 `/apply-kr`이 한국어 Markdown 문서(자기소개서·경력기술서·프로젝트경험)로 만듭니다. 영문 CV(LaTeX)가 필요한 외국계 공고는 `/apply`를 씁니다." 라고 설명하고, `CV language:` 줄에 `한국어`를 기록한다. 사용자가 영어를 원하면 영어로 둔다.
+3. **추가 질문** (자연스러운 대화로, 건너뛰기 가능):
+   - 신입인지 경력인지 (경력이면 연차와 직무)
+   - 희망 직무 (공고 검색어로도 쓰인다)
+   - 희망 지역 (서울·경기·판교 등)과 통근 한계
+   - 희망 연봉 (선택, 답하지 않아도 된다)
+   - 한국어 외에 직무에서 쓰는 언어와 수준, 공인 어학 점수가 있으면 점수와 취득 시기
+4. **프로필 기록.** 신입이면 `01-candidate-profile.md`의 Independent Projects 또는 프로젝트 항목에 학교·팀·개인 프로젝트를 "프로젝트"로 기록하고, 회사 경력과 섞지 않는다. 각 프로젝트의 개인 역할, 팀이 한 일, 확인 방법(테스트·측정)을 묻는다. 이 기록이 `/apply-kr`의 근거가 된다.
+5. **개인정보 최소화 안내.** "프로필에 주민등록번호, 상세 주소, 가족 관계, 재산 정보는 넣지 마세요. 지원서 작성에 필요하지 않고, 이 폴더의 파일은 git으로 추적됩니다." 연락처도 이메일·전화 정도로 제한한다. 공개 저장소에 올리지 않도록 Step 4의 개인정보 안내를 따른다.
+6. `.claude/skills/job-scraper/search-queries.md`의 검색어는 한국어 직무명과 영문 스킬명을 함께 쓰고, 지역 필터 단계는 희망 지역으로 채운다.
 
 ---
 
@@ -421,6 +440,7 @@ Present a summary:
 > **Try it out:**
 > - Run `/scrape` to search for matching jobs right now
 > - Run `/apply` with a job posting URL to see the full application workflow
+> - For Korean postings, run `/apply-kr` with a posting URL or pasted text (한국어 문서 산출물, no PDF)
 > - Run `/setup --section search` later to update your search queries as your priorities evolve
 
 If Path A left any STAR stubs in `07-interview-prep.md`, also note:

@@ -1,0 +1,2 @@
+export async function runCLI(args: string[]) { const proc = Bun.spawn(["bun", "run", "src/cli.ts", ...args], { cwd: new URL("..", import.meta.url).pathname, stdout: "pipe", stderr: "pipe" }); const [stdout, stderr, exitCode] = await Promise.all([new Response(proc.stdout).text(), new Response(proc.stderr).text(), proc.exited]); return { stdout, stderr, exitCode } }
+export function parseJSON(text: string) { return JSON.parse(text) }

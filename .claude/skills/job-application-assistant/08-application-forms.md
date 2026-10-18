@@ -85,3 +85,11 @@ Include:
 - [ ] Word and character counts measured, not estimated
 - [ ] In-progress qualifications described as in progress
 - [ ] `NOTE TO SELF` blocks clearly marked as internal
+
+## 한국 지원서 입력란 (한국 공고)
+
+한국 공고의 자기소개서 문항, 경력기술서, 프로젝트 입력란은 이 파일의 "Field type" 규칙과 같은 근거 원칙을 따르되 `/apply-kr`이 별도 산출물로 만든다(`10-korean-applications.md`). 이 파일의 `.txt` 출력 형식 대신 `documents/applications/<company>_<role>/` 아래 Markdown 파일을 쓴다.
+
+- 글자 수 기준은 공고나 입력창이 지정한 것(공백 포함·제외·바이트)을 그대로 쓴다. 지정이 없으면 "미확인"이며 임의로 정하지 않는다. 측정은 `python3 tools/kr_charcount.py`로 하고 추정하지 않는다.
+- 제출 형식(사이트 입력형, 첨부형, 기업 홈페이지 이동형)은 공고가 지정한 대로 따른다. 특정 포털의 버튼 이름이나 고정 양식을 단정하지 않는다.
+- 이 파일의 "Output format"에 있는 `NOTE TO SELF` 블록은 한국 산출물에서는 각 파일 끝의 `## 작성 메모` 섹션이 대신한다.

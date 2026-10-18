@@ -46,6 +46,13 @@ Judge the level comparison the same way you judge everything else in this framew
 
 **Worked example:** a candidate whose Languages table lists Spanish (Native) and English (B1/B2). A posting requiring "fluent Russian" → **FAIL**, Russian isn't declared at all. A posting requiring "fluent English" → **FLAG**, English is declared but "fluent" plausibly exceeds B1/B2 — score and draft the application, but tell the candidate this posting's bar may be a stretch and let them decide. A posting requiring "conversational English" or unspecified English → **PASS**, B1/B2 clears a "conversational" bar cleanly.
 
+### Korean postings (한국 공고)
+
+- 공고가 한국어인 것은 한국어 능력 요구를 뜻하지 않는다. 직무 조건으로 명시된 외국어(영어·일본어 등)만 위 표로 확인하고, 공고의 표현을 그대로 인용해 프로필의 Languages 표와 대조한다.
+- 한국 공고의 "필수 자격"은 요구 경력 연차, 학력, 자격증, 어학 점수를 포함한다. 프로필에 없는 연차·점수·자격증은 Experience/Skills 점수에서 부족으로 표시하고 문장으로 메우지 않는다.
+- 신입 공고에서 프로젝트·인턴 경험은 경력 연차로 환산하지 않는다. 경력 공고에서 학교 프로젝트만 있으면 Experience Match에 반영한다.
+- `/apply-kr`은 이 문서의 숫자 점수 대신 충족/미충족/확인 필요 대조표를 쓰고 합격 확률을 계산하지 않는다. 숫자 적합도를 따로 요청받은 경우에만 아래 Scoring Dimensions를 쓴다.
+
 ## Scoring Dimensions
 
 Evaluate each job posting against these five dimensions:

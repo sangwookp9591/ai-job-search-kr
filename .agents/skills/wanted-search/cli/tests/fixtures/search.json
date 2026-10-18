@@ -1,0 +1,1 @@
+{"links":{"prev":null,"next":"/api/v4/jobs?country=kr&limit=2&offset=2"},"data":[{"id":392946,"position":"[RDPLINE] 백엔드개발자 3년 이상","company":{"name":"비큐에이아이"},"address":{"location":"서울","district":"중구","full_location":"서울 중구"},"annual_from":3,"annual_to":100,"due_time":null,"reward":{"formatted_total":"100만원"},"category_tags":[{"id":899}]}]}

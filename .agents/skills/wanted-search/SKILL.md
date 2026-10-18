@@ -1,0 +1,37 @@
+---
+name: wanted-search
+version: 1.0.0
+description: >
+  원티드(wanted.co.kr)에서 채용공고를 검색하고 상세 정보를 조회할 때 사용한다.
+  채용공고, 구인, 이직, 신입 공채, 개발자 채용, 원티드 검색, Wanted jobs,
+  job listings, job search, hiring, career opportunities 요청에 적용한다.
+context: fork
+enabled: true
+allowed-tools: Bash(bun run .agents/skills/wanted-search/cli/src/cli.ts *)
+---
+
+# 원티드 채용공고 검색
+
+원티드의 검색 결과와 공고 상세를 조회하는 CLI입니다. OpenAPI 자격 증명이 있으면 공식 API를 우선 사용하고, 없으면 공개 웹 JSON API를 사용합니다.
+
+## 개인 사용 전용 경고
+
+⚠️ **개인 사용 전용** — `wanted.co.kr/robots.txt`는 CloudFront 403으로 정책을 확인하지 못했습니다. 키가 없는 공개 웹 JSON API는 비공식이며, 원티드 이용약관은 자동화 수단을 이용한 회원 데이터 수집 및 기술적 조치 우회를 제한합니다. 로그인/회원 데이터에 접근하지 말고, 공개 채용공고를 소량·저빈도로 개인 구직 확인에만 사용하세요. 실행 시 비공식 모드임을 stderr에 안내합니다. 공식 OpenAPI 사용을 우선 권장합니다.
+
+## 명령
+
+```bash
+bun run .agents/skills/wanted-search/cli/src/cli.ts search -q "백엔드" --limit 5 --format table
+bun run .agents/skills/wanted-search/cli/src/cli.ts detail 392946 --format plain
+```
+
+- `search`: `-q, --query` 필수, `--page` 1부터 시작, `--limit` 1~100, `--location`, `--career 신입|경력`, `--sort`, `--format json|table|plain`
+- `detail <id|url>`: 숫자 공고 ID 또는 `wanted.co.kr/wd/<id>` URL, `--format json|plain`
+- 출력 공통 필드: `id`, `title`, `company`, `location`, `posted_at`, `deadline`, `career`, `education`, `employment_type`, `url`, `source`. 연차 범위(`annual_from`, `annual_to`), 태그, 추천 보상금도 있으면 포함합니다.
+- 상세 JSON에는 지원서 작성에 필요한 `sections` 객체가 있으며 `main_tasks`, `requirements`, `preferred_points`, `benefits`를 별도 보존합니다.
+- 인증은 `WANTED_CLIENT_ID`, `WANTED_CLIENT_SECRET` 환경변수로만 설정합니다. 비밀값을 명령행이나 저장소에 넣지 마세요.
+- 오류는 stderr JSON과 종료 코드 1로 반환합니다.
+
+## 출처 / 제한
+
+OpenAPI 인증 및 endpoint 개요는 [url-reference.md](url-reference.md)를 확인하세요. 키가 없는 현재 환경에서 공식 OpenAPI 경로는 **미검증(키 없음)** 상태입니다. 공개 API의 정책 또한 robots.txt 차단으로 **미확인**입니다.
