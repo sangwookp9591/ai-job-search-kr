@@ -48,6 +48,21 @@ class ApplyKrPostingRules(unittest.TestCase):
         self.assertIn("제출 문서에는 제출 가능한 사실만", GUIDE)
         self.assertIn("제출 문서에 배치 의도", APPLY_KR.replace("(자기소개서·경력기술서·프로젝트경험)", ""))
 
+    def test_general_path_blocks_unrecorded_aspiration_sentences(self):
+        for needle in ("10-korean-applications.md", "기여하겠습니다", "이어가겠습니다", "성장하겠습니다", "겠습니다", "싶습니다"):
+            self.assertIn(needle, CLAUDE_MD)
+        self.assertIn("미래 의향·포부 문장 금지", GUIDE)
+        self.assertIn("겠습니다|싶습니다", APPLY_KR)
+
+    def test_templates_keep_guidance_out_of_submission_body(self):
+        import re
+        for name in ("프로젝트경험.md", "경력기술서.md", "자기소개서.md"):
+            text = (REPO / "templates" / "kr" / name).read_text(encoding="utf-8")
+            body = re.sub(r"<!--.*?-->", "", text, flags=re.S).split("## 작성 메모")[0]
+            for leak in ("쓰지 않는다", "쓰지 않는 것", "공고 요구사항과의 연결", "프로젝트가 아니다", "미제공`"):
+                self.assertNotIn(leak, body, f"{name}: {leak}")
+        self.assertIn("템플릿 안내·내부 규칙 문장", APPLY_KR)
+
 
 if __name__ == "__main__":
     unittest.main()
