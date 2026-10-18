@@ -25,7 +25,7 @@ bun run .agents/skills/saramin-search/cli/src/cli.ts search -q "데이터 엔지
 bun run .agents/skills/saramin-search/cli/src/cli.ts detail 27614114 --format plain
 ```
 
-`search`는 `--query/-q` 필수이며 `--page`, `--limit`(1~110), `--location/-l`(사람인 지역 코드), `--career`, `--sort`, `--format json|table|plain`을 받습니다. 검색 카드의 마감일은 Asia/Seoul 날짜 기준으로 연도를 추론하며, 오늘보다 앞선 월/일은 다음 해로 처리합니다. 오늘마감/내일마감은 서울 날짜를 기준으로 ISO 날짜로 바꿉니다. 상시채용·채용시는 `deadline: null`과 원문 `deadline_text`를 출력합니다. `detail`은 공고 ID 또는 `rec_idx` URL을 받고, relay 요약 페이지 및 `relay/view-detail` 본문 페이지를 읽습니다. 제목 기반 검색으로 상세의 지역·경력·학력·고용형태를 보충합니다. 본문이 이미지뿐이면 `image_only: true`를 표시합니다. JSON 결과는 `meta.source`와 각 공고의 `source`를 `saramin-api` 또는 `saramin-web`으로 표시합니다.
+`search`는 `--query/-q` 필수이며 `--page`, `--limit`(1~110), `--location/-l`(사람인 지역 코드), `--career`, `--sort`, `--format json|table|plain`을 받습니다. 검색 카드의 마감일은 Asia/Seoul 날짜 기준으로 연도를 추론하며, 오늘보다 앞선 월/일은 다음 해로 처리합니다. 오늘마감/내일마감은 서울 날짜를 기준으로 ISO 날짜로 바꿉니다. 상시채용·채용시는 `deadline: null`과 원문 `deadline_text`를 출력합니다. `detail`은 공고 ID 또는 `rec_idx` URL을 받고, relay 요약 페이지 및 `relay/view-detail` 본문 페이지를 읽습니다. 마감·지역·경력·학력·고용형태는 두 응답에서 직접 파싱하며 기본 검색 보강은 하지 않습니다. 상세 응답에 필드가 없으면 null과 `metadata_missing_reasons`를 반환합니다. 검색 보강이 필요할 때만 `detail <id> --enrich`를 지정하세요. 본문이 이미지뿐이면 `image_only: true`를 표시합니다. JSON 결과는 `meta.source`와 각 공고의 `source`를 `saramin-api` 또는 `saramin-web`으로 표시합니다.
 
 경력 조건의 서버 요청과 결과 허용 범위는 다음과 같습니다. 서버 필터만으로 광고 등 일부 카드가 섞일 수 있어 결과를 `career` 값으로 다시 거릅니다.
 
@@ -34,7 +34,7 @@ bun run .agents/skills/saramin-search/cli/src/cli.ts detail 27614114 --format pl
 | `신입` | `exp_cd=1`, `exp_none=y` | `신입`, `신입·경력`/`신입/경력`, `경력무관` |
 | `경력` | `exp_cd=2`, `exp_none=y` | `경력 N년`(범위·↑ 포함), `신입·경력`/`신입/경력`, `경력무관`; 순수 `신입` 제외 |
 
-두 필터는 같은 혼합·무관 표기를 허용하고, 각각 신입 단독 또는 경력 단독 조건을 추가합니다. 이 후처리는 유료 광고 카드에도 적용됩니다. 따라서 검색 한 번은 검색 페이지 요청 1회이며, 상세 한 번은 요약 endpoint와 본문 endpoint를 병렬로 각각 호출합니다(총 2회). 키 없는 상세는 추가로 검색 endpoint를 호출해 상세 메타데이터를 보강할 수 있어 최대 3회입니다. 키가 있으면 요약·본문 요청 뒤 공식 API 요청 1회가 추가됩니다.
+두 필터는 같은 혼합·무관 표기를 허용하고, 각각 신입 단독 또는 경력 단독 조건을 추가합니다. 이 후처리는 유료 광고 카드에도 적용됩니다. 따라서 검색 한 번은 검색 페이지 요청 1회입니다. 키 없는 상세는 기본 2회(요약 + 본문)이며 `--enrich` 지정 시에만 검색 1회가 추가되어 3회입니다. 상세 요청은 키 없는 경우 기본 최대 2회입니다. `SARAMIN_ACCESS_KEY`를 설정하면 기존 구현상 요약·본문·공식 API 상세 요청으로 3회 발생합니다. 정책 비교: Saramin 상세는 기본 보강을 끄고 `--enrich`에서만 추가 호출합니다. JobKorea 검색은 반대로 기본 보강을 켜고 `--no-enrich`에서 끄므로 두 포털의 옵션 기본값이 서로 다릅니다.
 
 ## 데이터 출처
 

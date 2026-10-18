@@ -10,6 +10,20 @@ describe("사람인 응답 파싱", () => {
  test("경력은 exp_cd 서버 필터를 보내고 신입 단독을 제외", () => { const params = new URLSearchParams({ searchword: "마케팅" }); applyWebCareerFilter(params, "경력"); expect(params.get("exp_cd")).toBe("2"); expect(params.get("exp_none")).toBe("y"); const jobs = ["신입", "신입·경력", "경력무관", "경력 3년↑", "경력 2~5년"].map((career, i) => ({ id: String(i), career } as any)); expect(filterJobsByCareer(jobs, "경력").map(job => job.career)).toEqual(["신입·경력", "경력무관", "경력 3년↑", "경력 2~5년"]); expect(filterJobsByCareer(jobs, "신입").map(job => job.career)).toEqual(["신입", "신입·경력", "경력무관"]) })
  test("상대 연도 규칙과 비확정 마감 처리", () => { const now = new Date("2026-10-18T00:00:00+09:00"); expect(deadlineFields("~ 10/31(토)", now).deadline).toBe("2026-10-31"); expect(deadlineFields("~ 01/02(토)", now).deadline).toBe("2027-01-02"); expect(deadlineFields("오늘마감", now).deadline).toBe("2026-10-18"); expect(deadlineFields("내일마감", now).deadline).toBe("2026-10-19"); expect(deadlineFields("채용시").deadline).toBeNull() })
  test("상세 템플릿에서 본문과 공고 메타데이터 파싱", () => { const body = readFileSync(new URL("./fixtures/detail-body.html", import.meta.url), "utf8"), summary = readFileSync(new URL("./fixtures/detail-summary.html", import.meta.url), "utf8"), job = parseDetail(body, "99000001", "https://www.saramin.co.kr/zf_user/jobs/relay/view?rec_idx=99000001", "saramin-web", summary); expect(job).toMatchObject({ company: "예시회사", career: "경력 3년 이상", education: "대학교졸업(4년)이상", deadline: "2026-10-31", date: "2026-10-31", description: "주요 업무\n백엔드 API 설계 및 개발을 담당합니다. 서비스 안정성과 성능 개선을 함께 진행합니다.", image_only: false }) })
+ test("라이브 상세 fixture 3건은 검색 추가 호출 없이 B1 필드를 채움", () => {
+  const expected = [
+   ["legacy", "서울 서초구 방배동 1021-11 두남빌딩 2층", "신입", "2026-11-05"],
+   ["modern-type-a", "서울 강서구 마곡중앙로 143", "신입", "2026-10-25"],
+   ["modern-type-b", "부산 해운대구 재송동 1209번지 센텀IS타워 514호", "경력무관", "2026-12-07"],
+  ]
+  for (const [template, location, career, deadline] of expected) {
+   const summary = readFileSync(new URL(`./fixtures/summary-${template}.html`, import.meta.url), "utf8"), body = readFileSync(new URL(`./fixtures/detail-${template}.html`, import.meta.url), "utf8")
+   const job = parseDetail(body, "99000001", "https://www.saramin.co.kr/zf_user/jobs/relay/view?rec_idx=99000001", "saramin-web", summary)
+   expect(job).toMatchObject({ location, career, deadline })
+   expect(job.education).toBeTruthy()
+   expect(job.employment_type).toBeTruthy()
+  }
+ })
  test("학력의 쉼표를 보존하고 공고 섹션 경계에 줄바꿈", () => { const html = '<div class="user_content"><h2>모집분야</h2><p>백엔드 개발자</p><h2>담당업무</h2><p>API 개발</p><h2>자격요건</h2><p>경력 3년</p></div>', summary = '<meta property="og:title" content="[회사] 공고"><meta name="description" content="회사, 학력:대학졸업(2,3년)이상, 면접 후 결정, 경력:경력 3년, 마감일:2026-10-31">', job = parseDetail(html, "55145352", "https://www.saramin.co.kr/zf_user/jobs/relay/view?rec_idx=55145352", "saramin-web", summary); expect(job.education).toBe("대학졸업(2,3년)이상, 면접 후 결정"); expect(job.description).toContain("모집분야\n백엔드 개발자\n\n담당업무\nAPI 개발\n\n자격요건\n경력 3년") })
  test("본문이 이미지뿐인 템플릿 표시", () => { const job = parseDetail('<div class="user_content"><img src="/posting.png" alt="채용공고"></div>', "990", "https://www.saramin.co.kr/zf_user/jobs/relay/view?rec_idx=990", "saramin-web", '<meta property="og:title" content="[회사] 공고">'); expect(job.image_only).toBe(true) })
 })
