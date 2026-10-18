@@ -60,11 +60,10 @@ export function parseSearch(html:string): Job[] {
   }
   if(!out.length) throw new Error("검색 결과를 파싱하지 못했습니다"); return out
 }
-export function parseDetail(html:string,id:string,_url:string) {
+export function parseDetail(html:string,id:string,_url:string,bodyHtml="") {
  const root=parse(html); const title=root.querySelector('script[type="application/ld+json"]')?.text.match(/"title"\s*:\s*"([^"]+)"/)?.[1]??root.querySelector('meta[property="og:title"]')?.getAttribute("content")?.split(" | ")[0] ?? root.querySelector("h1")?.text.trim() ?? ""
  if(!title) throw new Error("공고 제목을 찾지 못했습니다")
  const summaryDescription=root.querySelector('meta[name="description"]')?.getAttribute("content")??root.querySelector('meta[property="og:description"]')?.getAttribute("content")??""
- const imageOnly=!root.querySelector("img") && !root.querySelector("[data-sentry-component*=Description]") && summaryDescription.length<30
  const body=root.text.replace(/\s+/g," ").trim()
  const sourceText=summaryDescription||body
  const field=(label:string)=>sourceText.match(new RegExp(`${label}\\s*[:：]\\s*([^,|]+)`))?.[1]?.trim()??null
@@ -81,17 +80,17 @@ export function parseDetail(html:string,id:string,_url:string) {
  const career=field("경력")??posting?.experienceRequirements??null
  const education=field("학력")??posting?.educationRequirements??null
  let description:string|null=null, description_reason:string|null=null
- const structuredBody=posting?.description
- const section=root.querySelector('[data-sentry-component="RecruitmentGuidelines"]')
- const clean=(value:string)=>parse(value).textContent.replace(/\s+/g," ").trim()
- if(typeof structuredBody==="string" && clean(structuredBody).length>=20) description=clean(structuredBody)
- else if(section) {
-   for(const node of section.querySelectorAll("script,style,noscript")) node.remove()
-   const htmlText=section.innerHTML.replace(/<\/(?:p|div|li|tr|h[1-6])\s*>/gi,"\n").replace(/<br\s*\/?>/gi,"\n")
-   const text=parse(htmlText).textContent.replace(/[\t ]*\n[\t ]*/g,"\n").replace(/[\t ]+/g," ").replace(/\n{3,}/g,"\n\n").trim()
-   if(text.length>=20) description=text
- }
- if(imageOnly) { description=null; description_reason="공개 페이지에서 텍스트 본문을 찾지 못했습니다" }
- else if(!description) description_reason="모집요강 본문 또는 구조화 본문 필드를 찾지 못했습니다"
- return {id,title,company:root.querySelector('meta[name="writer"]')?.getAttribute("content")??null,location,posted_at:postedAt,deadline:indefiniteDeadline?null:(dateTextToIso(deadlineText)??validThrough),deadline_text:deadlineText??validThrough,valid_through:validThrough,career,education,employment_type:employmentType,apply_method:/즉시지원/.test(body)?"잡코리아 즉시지원":/홈페이지 지원/.test(body)?"홈페이지 지원":null,url:`${BASE_URL}/Recruit/GI_Read/${id}`,source:"jobkorea",description,image_only:imageOnly,description_reason }
+ const iframe=parse(bodyHtml)
+ for(const node of iframe.querySelectorAll("script,style,noscript,.devChargeEmail")) node.remove()
+ const iframeHtml=iframe.innerHTML.replace(/<!doctype[^>]*>/gi,"").replace(/<\/(?:p|div|li|tr|h[1-6]|section|table|ul|ol)\s*>/gi,"\n").replace(/<br\s*\/?>/gi,"\n")
+ let bodyText=parse(iframeHtml).textContent.replace(/\r\n?/g,"\n").replace(/\u00a0/g," ").replace(/[\t ]*\n[\t ]*/g,"\n").replace(/[\t ]+/g," ").split("\n").map(line=>line.trim()).join("\n").replace(/\n{3,}/g,"\n\n").trim()
+ bodyText=bodyText.replace(/입사\s*지원하기/g,"").replace(/[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}/g,"").replace(/\n{3,}/g,"\n\n").trim()
+ const imageUrls=iframe.querySelectorAll("img").map(img=>img.getAttribute("src")??img.getAttribute("data-src")).filter((src):src is string=>Boolean(src&&/^https?:\/\//i.test(src)))
+ const hasTextBody=bodyText.length>=100
+ const imageOnly=!hasTextBody&&imageUrls.length>0
+ if(hasTextBody) description=bodyText
+ else if(summaryDescription) description=summaryDescription
+ else if(typeof posting?.description==="string") description=posting.description
+ if(!description) description_reason="모집요강 본문과 메타 요약을 찾지 못했습니다"
+ return {id,title,company:root.querySelector('meta[name="writer"]')?.getAttribute("content")??null,location,posted_at:postedAt,deadline:indefiniteDeadline?null:(dateTextToIso(deadlineText)??validThrough),deadline_text:deadlineText??validThrough,valid_through:validThrough,career,education,employment_type:employmentType,apply_method:/즉시지원/.test(body)?"잡코리아 즉시지원":/홈페이지 지원/.test(body)?"홈페이지 지원":null,url:`${BASE_URL}/Recruit/GI_Read/${id}`,source:"jobkorea",description,description_source:hasTextBody?"posting_body":description?"meta_summary":null,image_only:imageOnly,image_urls:imageUrls,description_reason }
 }
