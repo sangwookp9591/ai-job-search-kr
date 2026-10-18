@@ -4,24 +4,34 @@
 
 ## 빠른 시작
 
-1. Python 3.10+, [Bun](https://bun.sh), Claude Code를 설치합니다.
-2. 저장소를 복제한 뒤 포털 CLI를 설치합니다.
+1. Python 3.10+, Git, [Bun](https://bun.sh), Claude Code를 설치합니다.
+2. 저장소를 복제하고 포털 CLI 의존성을 설치합니다. 설치 스크립트는 `.agents/skills/*/cli/`를 모두 찾아 설치하므로 사람인·잡코리아·원티드 CLI도 함께 설치됩니다.
 
    ```bash
+   git clone https://github.com/sangwookp9591/ai-job-search-kr.git
+   cd ai-job-search-kr
    python3 tools/install_portal_clis.py
+   claude
    ```
 
-3. Claude Code에서 `/setup`을 실행하고 국가로 대한민국을 선택합니다. 프로필은 실제 경력·기술·성과만 기록합니다.
+3. Claude Code 대화창에서 `/setup`을 실행하고 국가로 대한민국을 선택합니다. 프로필에는 실제로 한 일, 쓴 기술, 확인한 결과만 기록합니다.
 4. `/scrape`로 사람인·잡코리아·원티드의 공개 채용공고를 검색합니다. `search-queries.md`의 예처럼 직무 + 지역 + 경력 조건을 한국어로 입력할 수 있습니다.
-5. 공고 URL을 `/apply-kr <공고 URL>`에 전달하면 공고 분석, 요구사항 대조표, 자기소개서 문항별 초안, 경력기술서 또는 프로젝트 경험을 Markdown으로 작성합니다. PDF나 사이트 제출은 하지 않습니다.
-6. 초안 문장 윤문이 필요하면 `im-not-ai-by-ai-ng`의 `my-application` 스킬과 연계할 수 있습니다. 윤문 뒤에도 사실 및 글자 수를 다시 확인합니다.
+5. 지원할 공고 URL을 `/apply-kr <공고 URL>`에 넣고, 기업이 요구하는 자기소개서 문항과 글자 수도 함께 적습니다. 공고 분석, 요구사항 대조표, 문항별 초안, 경력기술서(경력자) 또는 프로젝트 경험(신입)을 `documents/applications/` 아래 Markdown으로 만들고 `tools/kr_charcount.py`로 문항별 글자 수를 확인합니다. URL을 읽지 못하는 공고는 본문을 복사해 붙여 넣어도 됩니다. PDF 생성이나 사이트 제출은 하지 않습니다.
+6. 문장 윤문이 필요하면 [im-not-ai-by-ai-ng](https://github.com/sangwookp9591/im-not-ai-by-ai-ng)의 `my-application` 스킬을 씁니다. Claude Code 대화창에서 설치합니다.
+
+   ```text
+   /plugin marketplace add sangwookp9591/im-not-ai-by-ai-ng
+   /plugin install personal-writing@im-not-ai-by-ai-ng
+   ```
+
+   Claude Code를 다시 시작한 뒤 `/personal-writing:my-application`을 호출하고, 사실·수치·내 역할은 바꾸지 말아 달라고 요청합니다. 윤문 뒤에도 사실과 글자 수를 다시 확인합니다.
 
 ## 포털과 인증
 
 | 포털 | 인증이 설정된 경우 | 키가 없을 때 |
 |---|---|---|
 | 사람인 | [`SARAMIN_ACCESS_KEY` 발급·가이드](https://oapi.saramin.co.kr/guide/job-search)로 공식 API 우선 | 공개 검색·상세 페이지를 제한적으로 조회합니다. 약관과 robots 정책의 불확실성을 포함한 CLI 경고를 확인하세요. |
-| 원티드 | [`WANTED_CLIENT_ID` / `WANTED_CLIENT_SECRET` OpenAPI 신청](https://openapi.wanted.jobs/)으로 공식 API 우선 | 공개 웹 JSON API를 사용합니다. 비공식 경로이며 정책을 확인할 수 없는 제한이 있어 개인·저빈도 조회만 허용합니다. |
+| 원티드 | [`WANTED_CLIENT_ID` / `WANTED_CLIENT_SECRET` OpenAPI 신청](https://openapi.wanted.jobs/)으로 공식 API 우선 | 기본으로는 `AUTH_REQUIRED`로 멈춥니다. `--unofficial` 플래그나 `WANTED_ALLOW_UNOFFICIAL=1`을 명시했을 때만 웹사이트의 공개 JSON을 씁니다. robots.txt를 확인할 수 없는 비공식 경로라 개인·저빈도 조회에만 쓰세요. |
 | 잡코리아 | 공식 API 키 모드 없음 | 공개 페이지를 저빈도로 조회합니다. 자동 수집 약관은 확인되지 않았으므로 개인 사용 전용 경고를 따르세요. |
 
 자격 증명은 해당 포털에서 발급받고 환경변수로만 전달하세요. 키를 명령행 인자, 문서, 저장소 파일에 넣지 마세요. 원티드 API는 OpenAPI 포털에서 client 등록과 키 발급을 신청합니다. 잡코리아는 확인된 공식 공개 API가 없어 키 발급 항목이 없습니다. 키가 없을 때도 검색할 수 있는 포털이 있지만, 비공식 공개 경로의 허용 여부를 보장하지 않습니다.
@@ -36,7 +46,7 @@
   claude -p "/apply-kr <공고 URL> ..." --allowedTools "Bash(bun run .agents/skills/saramin-search/cli/src/cli.ts *)" "Bash(python3 tools/kr_charcount.py *)"
   ```
 
-- 원티드는 공식 API 키가 없으면 `detail`에 `--unofficial` 플래그(또는 환경변수 `WANTED_ALLOW_UNOFFICIAL=1`)를 줘야 합니다. 키도 플래그도 없으면 `AUTH_REQUIRED`로 끝납니다. 비공식 경로이므로 개인·저빈도 조회에만 쓰고, 사용하기 어렵다면 공고 본문을 직접 붙여 넣으세요.
+- 원티드는 공식 API 키가 없으면 `search`·`detail` 모두 `--unofficial` 플래그(또는 환경변수 `WANTED_ALLOW_UNOFFICIAL=1`)를 줘야 합니다. 키도 플래그도 없으면 `AUTH_REQUIRED`로 끝납니다. 비공식 경로이므로 개인·저빈도 조회에만 쓰고, 사용하기 어렵다면 공고 본문을 직접 붙여 넣으세요.
 - `/apply-kr`이 인식되지 않는 헤드리스 환경에서도 한국어 지원서 사실성 규칙(`CLAUDE.md`)은 적용됩니다. 확인 단계를 건너뛰라고 요청해도 기록에 없는 경험·동기는 쓰지 않고 질문으로 돌려줍니다.
 
 ## 사실성 원칙

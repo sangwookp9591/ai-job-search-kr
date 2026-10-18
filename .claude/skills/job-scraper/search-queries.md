@@ -17,7 +17,7 @@ Example Korean CLI queries:
 ```text
 사람인: search -q "백엔드 개발자 서울 경력 3년" --limit 5
 잡코리아: search -q "데이터 엔지니어 판교 신입" --limit 5
-원티드: search -q "프론트엔드 개발자 서울 경력" --limit 5
+원티드: search -q "프론트엔드 개발자 서울 경력" --limit 5  # 키가 없으면 사용자 동의 후 --unofficial
 ```
 
 ## Search Sites
